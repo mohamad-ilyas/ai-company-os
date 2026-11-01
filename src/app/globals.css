@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Chart and status colours come from the validated data-viz palette:
+   departments use categorical slots 1–4 in fixed order; status colours are reserved. */
+:root {
+  color-scheme: light;
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #f1f1ee;
+  --surface-3: #e9e8e4;
+  --border: #e3e2dc;
+  --border-strong: #cfcec7;
+  --fg: #0f0f0e;
+  --fg-2: #4d4c49;
+  --muted: #76756f;
+  --accent: #1c5cab;
+  --accent-hover: #184f95;
+  --accent-fg: #ffffff;
+  --accent-soft: #e6eefa;
+  --ring: #2a78d6;
+  --success: #006300;
+  --success-mark: #0ca30c;
+  --warning: #7a5000;
+  --warning-mark: #fab219;
+  --serious-mark: #ec835a;
+  --danger: #b42828;
+  --danger-mark: #d03b3b;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --grid: #e1e0d9;
+  --shadow: 0 1px 2px rgb(15 15 14 / 0.05), 0 1px 1px rgb(15 15 14 / 0.03);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0e0e0d;
+  --surface: #181817;
+  --surface-2: #1f1f1e;
+  --surface-3: #2a2a28;
+  --border: #2c2c2a;
+  --border-strong: #3d3d3a;
+  --fg: #f0efec;
+  --fg-2: #c3c2b7;
+  --muted: #929189;
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
+  --accent-fg: #0b0b0b;
+  --accent-soft: #17273d;
+  --ring: #5598e7;
+  --success: #3fbf3f;
+  --success-mark: #0ca30c;
+  --warning: #fab219;
+  --warning-mark: #fab219;
+  --serious-mark: #ec835a;
+  --danger: #ef7b7b;
+  --danger-mark: #d03b3b;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --grid: #2c2c2a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-mark: var(--success-mark);
+  --color-warning: var(--warning);
+  --color-warning-mark: var(--warning-mark);
+  --color-serious-mark: var(--serious-mark);
+  --color-danger: var(--danger);
+  --color-danger-mark: var(--danger-mark);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --color-grid: var(--grid);
+  --shadow-card: var(--shadow);
+  --font-sans: var(--font-inter), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-plex-arabic), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+html[lang="ar"] body {
+  font-family: var(--font-arabic);
+  font-size: 15px;
+}
+
+/* Numbers in tables and tiles align and read the same in both scripts. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grid items default to min-width:auto, which lets wide tables push the page sideways on mobile. */
+.grid > * {
+  min-width: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+dialog::backdrop {
+  background: rgb(10 10 10 / 0.45);
+}
+
+dialog {
+  color: var(--fg);
+}
+
+/* Direction-sensitive icons (arrows, chevrons) flip in RTL. */
+[dir="rtl"] .flip-rtl {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .meter-fill,
+  .seg {
+    forced-color-adjust: none;
+  }
+}
+
+/* User content (task titles, project names, imported output) is often English inside an
+   Arabic layout. Let each line take its direction from its own text so punctuation and
+   truncation land on the correct side. */
+[dir="rtl"] :is(td, .truncate, .line-clamp-2, .bidi) {
+  unicode-bidi: plaintext;
+}

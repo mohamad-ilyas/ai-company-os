@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "aicos.result/v1"
+    },
+    "executionId": {
+      "type": "string",
+      "pattern": "^EXE-\\d{4,}$"
+    },
+    "employeeId": {
+      "type": "string",
+      "pattern": "^EMP-\\d{3}$"
+    },
+    "channel": {
+      "default": "claude_code",
+      "type": "string",
+      "enum": [
+        "claude_code",
+        "claude_chat"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "needs_input",
+        "failed"
+      ]
+    },
+    "startedAt": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "endedAt": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "default": "",
+      "type": "string",
+      "maxLength": 2000
+    },
+    "output": {
+      "default": "",
+      "type": "string",
+      "maxLength": 200000
+    },
+    "logs": {
+      "default": [],
+      "maxItems": 500,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    },
+    "errors": {
+      "default": [],
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000
+      }
+    },
+    "openQuestions": {
+      "default": [],
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000
+      }
+    },
+    "deliverables": {
+      "default": [],
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "design",
+              "brand_guidelines",
+              "requirements",
+              "technical_spec",
+              "source_code",
+              "test_report",
+              "documentation",
+              "client_deliverable"
+            ]
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "title",
+          "type",
+          "location"
+        ]
+      }
+    },
+    "handoff": {
+      "default": null,
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^EMP-\\d{3}$"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "to",
+            "note"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "executionId",
+    "employeeId",
+    "status"
+  ]
+}
