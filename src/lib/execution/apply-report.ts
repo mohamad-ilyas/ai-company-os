@@ -313,7 +313,8 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
   });
 
   s = log(s, ctx("system"), "execution", "agent_report_applied", {
-    id: report.reportId.slice(0, 8),
+    id: report.reportId,
+    reportId: report.reportId,
     count: String(applied),
     warnings: String(warnings.length),
   });

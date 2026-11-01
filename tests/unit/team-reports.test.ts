@@ -47,3 +47,13 @@ describe("real team reports (todo-app)", () => {
     console.log(tasks.map((t) => `${t.extKey}: ${t.status}`).join("\n"));
   });
 });
+
+describe("report bookkeeping", () => {
+  it("records the full reportId so the dashboard can skip duplicates", () => {
+    const parsed = parseAgentReport(reports[0]);
+    if (!parsed.ok) throw new Error("parse");
+    const { state } = applyAgentReport(createSeed(), "2026-11-01T21:30:00.000Z", parsed.report);
+    const entry = state.activity.find((a) => a.key === "agent_report_applied")!;
+    expect(entry.params.reportId).toBe("todo-app-0001");
+  });
+});

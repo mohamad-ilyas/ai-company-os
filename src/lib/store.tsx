@@ -119,6 +119,10 @@ export function restoreBackup(): boolean {
 export function applyReportToStore(payload: unknown): { outcome: "applied" | "partial" | "rejected"; detail: string } {
   const parsed = parseAgentReport(payload);
   if (!parsed.ok) return { outcome: "rejected", detail: parsed.issues.join("; ") };
+  // Never apply the same report twice (re-delivery, recovered claims, two open tabs).
+  if (current!.activity.some((a) => a.key === "agent_report_applied" && a.params.reportId === parsed.report.reportId)) {
+    return { outcome: "applied", detail: "Already applied earlier — skipped to avoid duplicates." };
+  }
   const { state, applied, warnings } = applyAgentReport(current!, new Date().toISOString(), parsed.report);
   setState(state);
   const total = parsed.report.actions.length + parsed.skipped.length;

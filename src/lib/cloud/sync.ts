@@ -128,11 +128,26 @@ async function push(uid: string, base: number) {
 /** Claim new AI team reports (atomically, so two devices never apply the same one) and apply them. */
 async function ingestReports() {
   if (!bridge || readMeta().dirty) return; // apply only on top of a fully synced state
+  // Recover reports a previous tab claimed but never finished (closed, reloaded, or offline mid-way).
+  // Safe: the dashboard skips any reportId it has already applied.
+  const stale = new Date(Date.now() - 5 * 60_000).toISOString();
+  await db().from("agent_reports").update({ claimed_at: null }).is("outcome", null).lt("claimed_at", stale);
+
   const { data, error } = await db().rpc("claim_agent_reports");
   if (error) throw error;
-  for (const row of (data ?? []) as InboxReport[]) {
-    const result = bridge.applyReport(row.payload);
-    await db().from("agent_reports").update({ outcome: result.outcome, outcome_detail: result.detail.slice(0, 4000) }).eq("id", row.id);
+  const rows = ((data ?? []) as InboxReport[]).sort((a, b) => a.id - b.id); // apply in the order they were sent
+  for (const row of rows) {
+    let result: ReportOutcome;
+    try {
+      result = bridge.applyReport(row.payload);
+    } catch (err) {
+      result = { outcome: "rejected", detail: `Dashboard error while applying: ${err instanceof Error ? err.message : String(err)}` };
+    }
+    const { error: saveError } = await db()
+      .from("agent_reports")
+      .update({ outcome: result.outcome, outcome_detail: result.detail.slice(0, 4000) })
+      .eq("id", row.id);
+    if (saveError) console.warn(`Could not record the outcome of report ${row.id}: ${saveError.message}`);
   }
 }
 
