@@ -31,7 +31,7 @@ if (!parsed.ok) {
   for (const issue of parsed.issues) console.error(`  - ${issue}`);
   process.exit(1);
 }
-console.log(`OK ${path}: ${parsed.report.actions.length} action(s)`);
+console.log(`OK ${path}: ${parsed.report.actions.length} action(s)${parsed.skipped.length ? `, ${parsed.skipped.length} would be skipped:\n  - ${parsed.skipped.join("\n  - ")}` : ""}`);
 if (checkOnly) process.exit(0);
 
 function agentKey(): string | null {

@@ -121,8 +121,10 @@ export function applyReportToStore(payload: unknown): { outcome: "applied" | "pa
   if (!parsed.ok) return { outcome: "rejected", detail: parsed.issues.join("; ") };
   const { state, applied, warnings } = applyAgentReport(current!, new Date().toISOString(), parsed.report);
   setState(state);
-  const detail = [`${applied} of ${parsed.report.actions.length} actions applied`, ...warnings].join("; ");
-  return { outcome: warnings.length === 0 ? "applied" : applied > 0 ? "partial" : "rejected", detail };
+  const total = parsed.report.actions.length + parsed.skipped.length;
+  const problems = [...parsed.skipped.map((x) => `skipped ${x}`), ...warnings];
+  const detail = [`${applied} of ${total} actions applied`, ...problems].join("; ");
+  return { outcome: problems.length === 0 ? "applied" : applied > 0 ? "partial" : "rejected", detail };
 }
 
 let recoveredOnLoad = false;

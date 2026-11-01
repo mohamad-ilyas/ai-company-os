@@ -18,6 +18,25 @@ const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 const text = (max: number) => z.string().max(max);
 const link = z.object({ label: text(200), url: text(1000) });
 
+// Sessions sometimes use near-miss values; translate the common ones instead of rejecting work.
+const DELIVERABLE_ALIASES: Record<string, (typeof DELIVERABLE_TYPES)[number]> = {
+  document: "documentation", doc: "documentation", docs: "documentation", markdown: "documentation", readme: "documentation", notes: "documentation",
+  code: "source_code", source: "source_code", app: "source_code", repository: "source_code", repo: "source_code",
+  spec: "requirements", specification: "requirements", requirements_doc: "requirements", user_stories: "requirements",
+  tech_spec: "technical_spec", architecture: "technical_spec", adr: "technical_spec",
+  test: "test_report", tests: "test_report", test_results: "test_report", review: "test_report", qa_report: "test_report",
+  ux: "design", ui: "design", mockup: "design", wireframe: "design", design_spec: "design",
+  brand: "brand_guidelines", branding: "brand_guidelines",
+};
+const deliverableType = z.preprocess(
+  (v) => (typeof v === "string" ? (DELIVERABLE_ALIASES[v.trim().toLowerCase()] ?? v.trim().toLowerCase()) : v),
+  z.enum(DELIVERABLE_TYPES),
+);
+const workStatus = z.preprocess(
+  (v) => (typeof v === "string" ? ({ done: "completed", complete: "completed", success: "completed", started: "in_progress", ongoing: "in_progress", blocked: "needs_input" } as Record<string, string>)[v.trim().toLowerCase()] ?? v.trim().toLowerCase() : v),
+  z.enum(["completed", "in_progress", "needs_input", "failed"]),
+);
+
 const projectUpsert = z.object({
   type: z.literal("project.upsert"),
   key,
@@ -69,7 +88,8 @@ const workRecord = z.object({
   projectKey: key.optional(),
   title: text(300).min(1),
   instructions: text(20_000).min(1),
-  status: z.enum(["completed", "needs_input", "failed"]),
+  /** in_progress = work started but not finished (shown as running, no review). */
+  status: workStatus,
   startedAt: isoDate.nullable().optional(),
   endedAt: isoDate.nullable().optional(),
   summary: text(2000).default(""),
@@ -78,7 +98,7 @@ const workRecord = z.object({
   errors: z.array(text(2000)).max(100).default([]),
   openQuestions: z.array(text(2000)).max(100).default([]),
   deliverables: z
-    .array(z.object({ title: text(200).min(1), type: z.enum(DELIVERABLE_TYPES), location: text(1000).min(1), description: text(2000).optional() }))
+    .array(z.object({ title: text(200).min(1), type: deliverableType, location: text(1000).min(1), description: text(2000).optional() }))
     .max(50)
     .default([]),
   handoff: z.object({ to: empId, note: text(2000) }).nullable().optional(),
@@ -116,7 +136,7 @@ const approvalRequest = z.object({
 const deliverableRecord = z.object({
   type: z.literal("deliverable.record"),
   title: text(200).min(1),
-  deliverableType: z.enum(DELIVERABLE_TYPES),
+  deliverableType: deliverableType,
   location: text(1000).min(1),
   description: text(2000).default(""),
   projectKey: key.optional(),
@@ -140,16 +160,32 @@ export const agentReportSchema = z.object({
   schema: z.literal(REPORT_SCHEMA_ID),
   reportId: z.string().min(8).max(100),
   sentAt: isoDate,
-  source: z.enum(["claude_code", "claude_code_web", "claude_chat"]),
+  source: z.preprocess((v) => (v === "claude_web" || v === "web" ? "claude_code_web" : v), z.enum(["claude_code", "claude_code_web", "claude_chat"])),
   summary: text(2000).default(""),
   actions: z.array(reportActionSchema).min(1).max(300),
 });
 
+/** The envelope is strict; actions are checked one by one so a single bad action never loses a report. */
+const envelopeSchema = agentReportSchema.extend({ actions: z.array(z.unknown()).min(1).max(300) });
+
 export type ReportAction = z.output<typeof reportActionSchema>;
 export type AgentReport = z.output<typeof agentReportSchema>;
 
-export function parseAgentReport(raw: unknown): { ok: true; report: AgentReport } | { ok: false; issues: string[] } {
-  const parsed = agentReportSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, issues: parsed.error.issues.slice(0, 15).map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`) };
-  return { ok: true, report: parsed.data };
+export function parseAgentReport(
+  raw: unknown,
+): { ok: true; report: AgentReport; skipped: string[] } | { ok: false; issues: string[] } {
+  const env = envelopeSchema.safeParse(raw);
+  if (!env.success) return { ok: false, issues: env.error.issues.slice(0, 15).map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`) };
+  const actions: ReportAction[] = [];
+  const skipped: string[] = [];
+  env.data.actions.forEach((a, i) => {
+    const r = reportActionSchema.safeParse(a);
+    if (r.success) actions.push(r.data);
+    else {
+      const type = a && typeof a === "object" && "type" in a ? String((a as { type: unknown }).type) : "?";
+      skipped.push(`#${i + 1} ${type}: ${r.error.issues.slice(0, 3).map((x) => `${x.path.join(".")}: ${x.message}`).join("; ")}`);
+    }
+  });
+  if (actions.length === 0) return { ok: false, issues: skipped };
+  return { ok: true, report: { ...env.data, actions }, skipped };
 }

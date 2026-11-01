@@ -208,12 +208,24 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
           channel,
         });
         s = markExecutionInSession(s, ctx(emp), exeId);
+        if (a.status === "in_progress") {
+          // Started but not finished: keep the record running with its log; no result, no review.
+          s = {
+            ...s,
+            executions: s.executions.map((e) =>
+              e.id === exeId
+                ? { ...e, startedAt: a.startedAt ?? e.startedAt, summary: a.summary, output: a.output, logs: [...e.logs, ...a.logs.map((l) => ({ at: l.at ?? now, message: l.message }))] }
+                : e,
+            ),
+          };
+          return;
+        }
         const result: ExecutionResult = {
           schema: "aicos.result/v1",
           executionId: exeId,
           employeeId: emp,
           channel,
-          status: a.status,
+          status: a.status as ExecutionResult["status"],
           startedAt: a.startedAt ?? null,
           endedAt: a.endedAt ?? null,
           summary: a.summary,
