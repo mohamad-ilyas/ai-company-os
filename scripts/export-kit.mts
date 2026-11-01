@@ -26,9 +26,79 @@ async function copy(rel: string) {
 }
 
 for (const e of EMPLOYEES) await write(join(".claude", "agents", `${e.slug}.md`), agentFile(e));
-for (const c of ["new-project", "continue-project", "task"]) await copy(join(".claude", "commands", `${c}.md`));
+for (const c of ["new-project", "quick-app", "continue-project", "task"]) await copy(join(".claude", "commands", `${c}.md`));
 for (const f of ["scripts/aicos-report.mjs", "aicos.config.json", "docs/agent-report.md", "docs/agent-report.schema.json"]) await copy(f);
 await write("company/outbox/.gitkeep", "");
+
+// Previews: the CEO (only) runs this to publish every project branch that has a build:preview script.
+await write(
+  ".github/workflows/publish-previews.yml",
+  `# Publishes a live preview of every project branch (project/<key>) whose app has a
+# "build:preview" script, at https://<owner>.github.io/<repo>/<key>/.
+# Run by the CEO only: Actions → Publish previews → Run workflow. The deploy also
+# waits for approval in the github-pages environment.
+name: Publish previews
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Build every project preview
+        env:
+          REPO: \${{ github.event.repository.name }}
+        run: |
+          set -u
+          mkdir -p site
+          items=""
+          for ref in $(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/project/*'); do
+            key="\${ref#origin/project/}"
+            git worktree add --detach "wt/$key" "$ref" >/dev/null
+            app="wt/$key/projects/$key/app"
+            if [ -f "$app/package.json" ] && node -e "process.exit(require('./$app/package.json').scripts?.['build:preview'] ? 0 : 1)"; then
+              if (cd "$app" && npm ci && BASE_PATH="/$REPO/$key/" npm run build:preview) && [ -d "$app/dist" ]; then
+                cp -r "$app/dist" "site/$key"
+                items="$items<li><a href=\"$key/\">$key</a></li>"
+              else
+                echo "::warning::Preview build failed for $key"
+              fi
+            fi
+          done
+          printf '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Previews</title><body style="font-family:system-ui;max-width:40rem;margin:3rem auto;padding:0 1rem"><h1>Project previews</h1><ul>%s</ul></body></html>' "$items" > site/index.html
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+`,
+);
 
 await write(
   ".gitignore",
@@ -60,7 +130,9 @@ Client work by the AI Company OS team. **This repository is PUBLIC** (CEO decisi
 everything committed here is visible to anyone. See the rules below before writing anything.
 Dashboard: https://mohamad-ilyas.github.io/ai-company-os/ (source: mohamad-ilyas/ai-company-os).
 
-- Start a client project: \`/new-project <request>\`. Resume: \`/continue-project <key>\`. One task: \`/task <employee>: <what>\`.
+- Start a client project: \`/new-project <request>\`. Small app or prototype: \`/quick-app <request>\`.
+  Resume: \`/continue-project <key>\`. One task: \`/task <employee>: <what>\`.
+- Previews: only the CEO runs Actions → **Publish previews**; it serves each project at /agency-projects/<key>/.
 - Each client project lives in \`projects/<key>/\` on branch \`project/<key>\`; \`PROJECT.md\` there is its state file.
 - The 13 employees are subagents in \`.claude/agents/\`. They are generated from the dashboard repository — edit them there
   and re-export (\`npm run kit:export -- ../agency-projects\` in ai-company-os), not here.
