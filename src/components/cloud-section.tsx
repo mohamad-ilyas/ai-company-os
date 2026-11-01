@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Cloud, CloudOff, LogOut, Mail, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Cloud, CloudOff, Link2, LogIn, LogOut, Mail, RefreshCw } from "lucide-react";
 import { replaceState, useCompany, useI18n } from "@/lib/store";
 import { cloudConfigured, loadSync, useCloud, type CloudStatus } from "@/lib/cloud/status";
 import { Badge, Button, Card, CardBody, CardHeader, Input, Notice, type Tone } from "./ui/primitives";
@@ -38,6 +38,18 @@ export function CloudSection() {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const signedIn = !!cloud.email;
+  const [githubLinked, setGithubLinked] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!signedIn) return;
+    let live = true;
+    void loadSync()
+      .then((m) => m.hasGitHubIdentity())
+      .then((v) => live && setGithubLinked(v))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [signedIn]);
 
   return (
     <Card id="cloud">
@@ -59,6 +71,26 @@ export function CloudSection() {
                 {cloud.error && <span dir="ltr" className="mt-1 block font-mono text-xs text-fg-2">{cloud.error}</span>}
               </Notice>
             )}
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
+              <LogIn className="size-4 text-fg-2" aria-hidden />
+              {githubLinked ? (
+                <span className="text-fg" data-testid="github-linked">{t("cloud.githubLinked")}</span>
+              ) : (
+                <>
+                  <span className="flex-1 text-fg-2">{t("cloud.githubLinkHint")}</span>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const r = await (await loadSync()).linkGitHub();
+                      if (!r.ok) toast.error(r.error ?? t("common.error"));
+                    }}
+                  >
+                    <Link2 className="size-4" />
+                    {t("cloud.githubLink")}
+                  </Button>
+                </>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => void loadSync().then((m) => m.syncNow())} disabled={cloud.status === "syncing"}>
                 <RefreshCw className="size-4" />
@@ -85,8 +117,21 @@ export function CloudSection() {
             </div>
           </>
         ) : (
+          <div className="space-y-4">
+          <Button
+            variant="primary"
+            data-testid="github-signin"
+            onClick={async () => {
+              const r = await (await loadSync()).signInWithGitHub();
+              if (!r.ok) toast.error(r.error ?? t("common.error"));
+            }}
+          >
+            <LogIn className="size-4" />
+            {t("cloud.githubSignIn")}
+          </Button>
+          <p className="text-xs text-muted">{t("cloud.githubSignInHint")}</p>
           <form
-            className="space-y-3"
+            className="space-y-3 border-t border-border pt-4"
             onSubmit={async (e) => {
               e.preventDefault();
               setSending(true);
@@ -100,12 +145,13 @@ export function CloudSection() {
               {t("cloud.email")}
               <Input type="email" required dir="ltr" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" data-testid="cloud-email" />
             </label>
-            <Button type="submit" variant="primary" disabled={sending || !email.trim()}>
+            <Button type="submit" disabled={sending || !email.trim()}>
               <Mail className="size-4" />
               {t("cloud.sendLink")}
             </Button>
             {cloud.status === "link_sent" && <Notice>{t("cloud.linkSent")}</Notice>}
           </form>
+          </div>
         )}
         <p className="text-xs text-muted">{t("cloud.deviceNote")}</p>
       </CardBody>

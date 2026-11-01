@@ -196,6 +196,25 @@ export async function sendSignInLink(email: string): Promise<{ ok: boolean; erro
   return { ok: true };
 }
 
+const redirectTo = () => `${window.location.origin}${BASE_PATH}/settings/`;
+
+/** Sign in with GitHub — no email, no rate limit. Works once GitHub is linked to the account. */
+export async function signInWithGitHub(): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await db().auth.signInWithOAuth({ provider: "github", options: { redirectTo: redirectTo() } });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/** Adds GitHub as a second way into the signed-in account (needed because public sign-ups are off). */
+export async function linkGitHub(): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await db().auth.linkIdentity({ provider: "github", options: { redirectTo: redirectTo() } });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+export async function hasGitHubIdentity(): Promise<boolean> {
+  const { data } = await db().auth.getUserIdentities();
+  return !!data?.identities.some((i) => i.provider === "github");
+}
+
 export async function syncNow() {
   await reconcile();
 }

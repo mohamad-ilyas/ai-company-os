@@ -760,6 +760,11 @@ export const en = {
     invalidRemote: "The cloud copy could not be read, so it was not applied. Your local data is unchanged.",
     pulled: "Updated with the latest data from the cloud.",
     deviceNote: "Language, theme and session role stay per device.",
+    githubSignIn: "Sign in with GitHub",
+    githubSignInHint: "Works after you connect GitHub once from a device that's already signed in. Or use an email link below (limited to 2 emails per hour).",
+    githubLink: "Connect GitHub",
+    githubLinkHint: "Connect GitHub to sign in on other devices without email.",
+    githubLinked: "GitHub sign-in connected — use “Sign in with GitHub” on your other devices.",
     status: {
       disabled: "Local only",
       signed_out: "Signed out",
