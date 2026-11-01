@@ -169,3 +169,8 @@ export function buildChatPrompt(packet: AssignmentPacket): string {
 export function claudeCodeCommand(executionId: string): string {
   return `claude "/run-assignment ~/Downloads/${executionId}.assignment.json"`;
 }
+
+/** For Claude Code on the web (e.g. from a phone): the command plus the packet, pasted as one message. */
+export function claudeCodeWebPrompt(packet: AssignmentPacket): string {
+  return `/run-assignment\n\n\`\`\`json\n${JSON.stringify(packet, null, 2)}\n\`\`\``;
+}

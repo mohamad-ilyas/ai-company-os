@@ -12,6 +12,7 @@ import { parseCompanyState } from "./state-schema";
 import { formatDate, formatDateTime, makeT, pick, type Translate } from "./i18n";
 import type { ActorId, CompanyState, EmployeeId, L10n, Locale } from "./types";
 import { useToast } from "@/components/ui/toast";
+import { cloudConfigured, loadSync } from "./cloud/status";
 
 export const STORAGE_KEY = "aicos:state:v1";
 export const BACKUP_KEY = "aicos:state:backup";
@@ -71,12 +72,23 @@ function persist(s: CompanyState): boolean {
   }
 }
 
-export function setState(next: CompanyState): boolean {
+const changeListeners = new Set<() => void>();
+
+/** `fromCloud` marks state that came from cloud sync, so it isn't uploaded straight back. */
+export function setState(next: CompanyState, fromCloud = false): boolean {
   current = next;
   const ok = persist(next);
   applyPrefs(next);
   emit();
+  if (!fromCloud) changeListeners.forEach((l) => l());
   return ok;
+}
+
+/** Language, theme, and session role belong to the device, not the company. */
+function keepDevicePrefs(remote: CompanyState): CompanyState {
+  if (!current) return remote;
+  const { locale, theme, role } = current.settings;
+  return { ...remote, settings: { ...remote.settings, locale, theme, role } };
 }
 
 /** Replace all data (import / reset), keeping the previous data as a one-step backup. */
@@ -119,6 +131,33 @@ const getServerSnapshot = () => null;
 export function StoreProvider({ children, fallback }: { children: ReactNode; fallback: ReactNode }) {
   const state = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
   const toast = useToast();
+
+  useEffect(() => {
+    if (!cloudConfigured) return;
+    void loadSync().then(({ startCloud }) =>
+      startCloud({
+        get: () => current!,
+        applyRemote: (remote) => setState(keepDevicePrefs(remote), true),
+        backup: (local) => {
+          try {
+            localStorage.setItem(BACKUP_KEY, JSON.stringify(local));
+          } catch {
+            /* best effort */
+          }
+        },
+        onLocalChange: (fn) => {
+          changeListeners.add(fn);
+          return () => changeListeners.delete(fn);
+        },
+        notify: (kind) => {
+          const t = makeT(current!.settings.locale);
+          if (kind === "conflict") toast.error(t("cloud.conflict"));
+          else if (kind === "invalid_remote") toast.error(t("cloud.invalidRemote"));
+          else toast.success(t("cloud.pulled"));
+        },
+      }),
+    );
+  }, [toast]);
 
   useEffect(() => {
     if (recoveredOnLoad && current) {

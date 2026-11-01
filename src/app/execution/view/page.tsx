@@ -10,7 +10,7 @@ import { Dialog, useConfirm } from "@/components/ui/dialog";
 import { Markdown } from "@/components/ui/markdown";
 import { ActorChip, CopyButton, ExecutionStatusBadge, RefLink, ReviewBadge, SampleBadge, downloadFile, useQueryParam } from "@/components/common";
 import { can, cancelExecution, createFollowUp, importExecutionResult, markExecutionInSession, reviewExecution } from "@/lib/domain";
-import { buildChatPrompt, buildPacket, claudeCodeCommand } from "@/lib/execution/packet";
+import { buildChatPrompt, buildPacket, claudeCodeCommand, claudeCodeWebPrompt } from "@/lib/execution/packet";
 import { parseExecutionResult } from "@/lib/execution/result-schema";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/cn";
@@ -210,6 +210,7 @@ function ExecutionView() {
                   <Step title={t("execution.stepRun")} active={exe.status === "queued"}>
                     {exe.channel === "claude_code" ? (
                       <>
+                        <p className="font-medium text-fg">{t("execution.onComputer")}</p>
                         <p>{t("execution.runCode")}</p>
                         <div className="flex items-center gap-2">
                           <code dir="ltr" className="flex-1 overflow-x-auto whitespace-nowrap rounded-md bg-surface-2 px-3 py-2 font-mono text-xs text-fg" data-testid="run-command">
@@ -217,6 +218,12 @@ function ExecutionView() {
                           </code>
                           <CopyButton text={claudeCodeCommand(exe.id)} />
                         </div>
+                        <p className="pt-2 font-medium text-fg">{t("execution.onPhone")}</p>
+                        <p>
+                          {t("execution.runWeb")}{" "}
+                          <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">claude.ai/code</a>
+                        </p>
+                        <CopyButton text={claudeCodeWebPrompt(packet)} label={t("execution.copyWebCommand")} testId="copy-web-command" />
                       </>
                     ) : (
                       <p>{t("execution.runChat")}</p>

@@ -312,6 +312,37 @@ Option 1 now. The data layer is isolated behind one store module so option 2 can
 
 **Reset**: Settings → Data → **Reset to seed data** (requires confirmation). Export first.
 
-Clearing site data in the browser deletes everything that has not been exported.`,
+Clearing site data in the browser deletes everything that has not been exported.
+
+**With cloud sync on** (Settings → Cloud sync), the company is also saved in your private Supabase project and every signed-in device stays in step. Keep exporting occasionally anyway: the free project pauses after a week without use (unpause it at supabase.com/dashboard), and an export is your copy if you ever leave Supabase.`,
+  },
+  {
+    id: "KB-017",
+    title: "ADR-002: Cloud sync with Supabase (free tier)",
+    category: "decision",
+    tags: ["adr", "architecture", "persistence", "security"],
+    authorId: "EMP-006",
+    updatedAt: "2026-11-01T21:00:00.000Z",
+    body: `- Status: accepted
+- Date: 2026-11-01
+- Supersedes: the "data stays in one browser" consequence of ADR-001
+
+## Context
+The CEO works from both a phone and a computer. Browser-only storage meant two separate companies.
+
+## Decision
+Mirror the company state to one private row per user in Supabase (free tier):
+- Sign-in by emailed link; no passwords stored by the app.
+- Row Level Security: a user can only read or write their own row. No delete policy.
+- Saves go through \`save_company_state(state, base_revision)\`, which only succeeds if the device saw the latest revision — so one device never silently overwrites another. On a conflict the cloud copy wins and the device's copy is kept as a restorable backup.
+- The browser keeps working offline from local storage and uploads when the cloud is reachable.
+- Language, theme and session role stay per device.
+- Only the public URL and publishable key are in the app; the secret key is never used.
+
+## Consequences
+- Same data on every signed-in device; data is now protected by authentication and RLS, not just by being in one browser.
+- Free tier: 500 MB database (the company uses well under 1 MB). Projects pause after 1 week without activity; unpause from the Supabase dashboard.
+- After the CEO's first sign-in, turn off "Allow new users to sign up" in Supabase so no one else can create an account.
+- Schema: \`supabase/migrations/0001_company_state.sql\`.`,
   },
 ];

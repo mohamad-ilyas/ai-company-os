@@ -43,16 +43,30 @@ An AI employee is a **profile** — not a background process. Nothing runs unles
 
 ## Your data
 
-- Stored in **this browser** (localStorage). Other people visiting the public site see only the seed data.
-- No automatic sync between devices — **Settings → Data → Export JSON** to back up or move it; Import to restore.
-  Export weekly.
-- Roles (CEO / Operator / Viewer) prevent mistakes; they are not a security boundary without a server.
-  Don't put confidential client data in local mode. See `docs/architecture.md` for the optional Supabase upgrade.
+- **Cloud sync (Settings → Cloud sync):** sign in with an emailed link and the same company appears on your phone
+  and computer. It's stored in your private Supabase project (free tier) behind Row Level Security. Works offline;
+  uploads when back online.
+- Without signing in, data stays in **this browser** only. Visitors to the public site see only the seed data.
+- **Settings → Data → Export JSON** is your independent backup. The free Supabase project pauses after a week
+  without use — unpause it at supabase.com/dashboard.
+- Roles (CEO / Operator / Viewer) are UI safeguards; the data itself is protected by sign-in + RLS.
+
+## From your phone
+
+- **Writing, plans, specs, reviews:** Execution Center → assignment → *Copy chat prompt* → Claude app → paste the
+  reply back into *Import the result*.
+- **Code and repository work:** choose *Claude Code*, tap *Copy command for Claude Code web*, open
+  [claude.ai/code](https://claude.ai/code), pick `mohamad-ilyas/ai-company-os`, paste. Copy the JSON block from the
+  reply back into the dashboard. Code changes land on a separate branch for you to review.
 
 ## Deploying (GitHub Pages)
 
 The workflow in `.github/workflows/ci-deploy.yml` lints, type-checks, runs unit and E2E tests, builds, and
 deploys `main` to `https://<user>.github.io/ai-company-os/`.
+
+Cloud sync is enabled by two repository **variables** (Settings → Secrets and variables → Actions → Variables):
+`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Run `supabase/migrations/0001_company_state.sql` once in the
+Supabase SQL editor.
 
 One-time setup (needs the repository owner):
 1. Create the repository under `mohamad-ilyas`. It must be **public** for free GitHub Pages.

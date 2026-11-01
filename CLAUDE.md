@@ -27,7 +27,7 @@ identity; don't change it.
 
 ## Running an assignment
 
-When the CEO runs `/run-assignment <packet.json>`, follow
+When the CEO runs `/run-assignment <packet.json or pasted packet>`, follow
 `.claude/commands/run-assignment.md`. Employees are subagents in
 `.claude/agents/<slug>.md`. Results go to `company/outbox/` (git-ignored) and are
 validated with `npm run result:check -- <file>`.
@@ -40,7 +40,9 @@ src/data/seed.ts        initial company state (real records + flagged samples)
 src/data/knowledge.ts   policies, standards, SOPs, ADRs, prompts
 src/lib/domain.ts       all business rules (pure functions, unit-tested)
 src/lib/workflow.ts     lifecycle stages, status transitions
-src/lib/store.tsx       localStorage persistence (swap here for cloud storage)
+src/lib/store.tsx       localStorage working copy + change hooks
+src/lib/cloud/          Supabase cloud sync (reconcile.ts is pure + tested)
+supabase/migrations/    SQL for the cloud table, RLS, save function
 src/lib/execution/      assignment packet + result schema (the Claude bridge)
 src/lib/i18n/           en.ts / ar.ts — Arabic must stay complete (type-checked)
 src/app/                one folder per module; detail pages use ?id= query

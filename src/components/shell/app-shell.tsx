@@ -31,6 +31,8 @@ import { updateSettings } from "@/lib/domain";
 import type { TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/primitives";
+import { CloudStatusBadge } from "@/components/cloud-section";
+import { cloudConfigured } from "@/lib/cloud/status";
 
 type NavItem = { href: string; key: TKey; icon: typeof Users; badge?: number; badgeTone?: "warning" | "danger" | "info" };
 
@@ -131,10 +133,16 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
       <div className="space-y-1.5 border-t border-border px-4 py-3 text-xs text-muted">
-        <p className="flex items-center gap-1.5" title={t("app.localModeHint")}>
-          <span className="size-1.5 rounded-full bg-success-mark" aria-hidden />
-          {t("app.localMode")}
-        </p>
+        {cloudConfigured ? (
+          <Link href="/settings/" className="block" title={t("cloud.title")} data-testid="sidebar-cloud">
+            <CloudStatusBadge />
+          </Link>
+        ) : (
+          <p className="flex items-center gap-1.5" title={t("app.localModeHint")}>
+            <span className="size-1.5 rounded-full bg-success-mark" aria-hidden />
+            {t("app.localMode")}
+          </p>
+        )}
         <p>{t("app.zeroSpend")}</p>
       </div>
     </div>

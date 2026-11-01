@@ -10,6 +10,7 @@ import { ActivityList, ActorChip, ProjectStatusBadge, RiskBadge, SampleBadge, SL
 import { countBy, departmentStats, OPEN_TASK, projectProgress, qualityStats, scope } from "@/lib/metrics";
 import { routes } from "@/lib/routes";
 import { useDocumentTitle } from "@/components/shell/use-title";
+import { useCloud } from "@/lib/cloud/status";
 import type { TaskStatus } from "@/lib/types";
 
 const ACTIVE_PROJECT = ["planning", "requirements", "design", "development", "testing", "review", "awaiting_ceo_approval", "ready_for_delivery"];
@@ -27,6 +28,7 @@ export default function OverviewPage() {
   const n = (k: TaskStatus) => byStatus[k] ?? 0;
   const q = qualityStats(s, inc);
   const exes = scope(s.executions, inc);
+  const cloud = useCloud();
   // The store renders pages only on the client, so localStorage is available here.
   const [lastExport] = useState<string | null>(() => localStorage.getItem(LAST_EXPORT_KEY));
 
@@ -223,7 +225,7 @@ export default function OverviewPage() {
               <dl className="space-y-2.5 text-[13px]">
                 {[
                   { k: t("overview.hosting"), v: t("overview.hostingValue") },
-                  { k: t("overview.dataStore"), v: t("overview.dataStoreValue") },
+                  { k: t("overview.dataStore"), v: cloud.email ? `${t("overview.dataStoreCloud")} · ${t(`cloud.status.${cloud.status}`)}` : t("overview.dataStoreValue") },
                   { k: t("overview.lastExport"), v: lastExport ? date(lastExport) : t("overview.never") },
                   { k: t("overview.aiAccess"), v: t("overview.aiAccessValue") },
                   { k: t("overview.paidServices"), v: t("overview.paidServicesValue") },

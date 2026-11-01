@@ -8,6 +8,7 @@ import { Button, Card, CardBody, CardHeader, Checkbox, Field, Input, Notice, Pag
 import { useConfirm } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { ActorChip, downloadFile } from "@/components/common";
+import { CloudSection } from "@/components/cloud-section";
 import { can, clearSampleData, setAvailability, setDepartmentManager, setRole, updateSettings } from "@/lib/domain";
 import { parseCompanyState } from "@/lib/state-schema";
 import { createSeed } from "@/data/seed";
@@ -166,6 +167,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
+          <CloudSection />
           <Section id="data" title={t("settings.data")} description={t("app.localModeHint")}>
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" onClick={exportJson} data-testid="export-json"><Download className="size-4" />{t("settings.exportJson")}</Button>

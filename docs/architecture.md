@@ -58,27 +58,30 @@ flowchart LR
 
 ## Security model — read this
 
-- In local mode there is **no server**, so roles (CEO / Operator / Viewer) are a
-  safeguard against mistakes, not a security boundary.
-- The public site serves only the seed data in this repository. Edits live in the
-  browser that made them. Don't store confidential client data in local mode.
+- With cloud sync, data is protected by Supabase Auth (emailed sign-in link) and
+  Row Level Security: each account can only read/write its own row. The app
+  ships only the public URL and publishable key. Turn off public sign-ups after
+  the CEO's first sign-in.
+- Roles (CEO / Operator / Viewer) are still a UI safeguard against mistakes, not a
+  security boundary — anyone signed in as the CEO's account is the CEO.
+- The public site serves only the seed data in this repository to visitors who
+  aren't signed in.
 - Imported files are schema-validated; Markdown is rendered to React elements
   (no raw HTML), links are restricted to http(s)/mailto/relative.
 - CI refuses to publish a build containing strings that look like secrets.
 - Production deploys go through the `github-pages` environment; add the CEO as a
   required reviewer so GitHub enforces the approval gate.
 
-## Upgrade path: shared, multi-device data (optional, $0)
+## Cloud sync (ADR-002)
 
-Supabase's free tier can provide Postgres, auth (magic link), and Row Level
-Security. Not enabled — it requires the CEO to create an account, and free
-projects pause after about a week without activity (check current limits on
-supabase.com/pricing before relying on it). Tracked as task TSK-0009.
+`src/lib/cloud/` mirrors the state to Supabase (free tier: 500 MB DB, pauses after
+1 week idle). localStorage stays the working copy, so the app works offline.
 
-Plan when approved:
-1. One table `company_state (owner uuid primary key references auth.users,
-   state jsonb not null, revision int not null, updated_at timestamptz)` with RLS
-   `using (owner = auth.uid()) with check (owner = auth.uid())`.
-2. Only the public anon key in the browser; never the service-role key.
-3. Replace `load()` / `persist()` in `store.tsx` with an adapter that reads and
-   upserts that row, using `revision` for conflict detection. Pages don't change.
+- `supabase/migrations/0001_company_state.sql`: one row per user, RLS, and
+  `save_company_state(state, base_revision)` — an atomic compare-and-set.
+- `reconcile.ts` (pure, unit-tested) decides push / pull / conflict from the
+  device's last-seen revision and whether it has unsent changes. Conflicts keep
+  the cloud copy and save the device's copy as a restorable backup.
+- Sync runs after each change (debounced), on tab focus, when coming back online,
+  and every 60 s while visible. The Supabase client is loaded only when
+  `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_KEY` are set at build time.
