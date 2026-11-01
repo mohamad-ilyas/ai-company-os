@@ -326,7 +326,7 @@ Clearing site data in the browser deletes everything that has not been exported.
     body: `## One-time setup
 1. **Dashboard → Settings → Cloud sync**: sign in with your email link — on the iPhone and on the Mac. Both now show the same company.
 2. **Settings → AI team channel → Create agent key.** Copy it once:
-   - **Claude Code on the web / iPhone**: claude.ai/code → environment settings → add environment variable \`AICOS_AGENT_KEY\` = the key.
+   - **Claude Code on the web / iPhone** (do it once, from any browser — it applies to the Claude app too): claude.ai/code → the environment selector under the message box → ⚙ on your environment → **Network secrets** → **Add secret**: Allowed websites \`qdezhdwmjrmpqjgzludj.supabase.co\`; Custom header name \`X-Aicos-Agent-Key\`, prefix empty, value = the key. Use a network secret, not an environment variable: the secret is added by Anthropic's proxy and never enters the cloud machine, and it also lets sessions reach the dashboard's server.
    - **Mac**: run the Keychain command shown in the dialog and paste the key.
 3. In **claude.ai/code**, connect GitHub and allow the repositories \`mohamad-ilyas/agency-projects\` (client work — public, so no confidential client material) and \`mohamad-ilyas/ai-company-os\` (internal work).
 

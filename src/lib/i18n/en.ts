@@ -783,7 +783,7 @@ export const en = {
     keyActive: "Active key ending in …{hint}, created {date}",
     showOnce: "Copy this key now — it is shown only once and is not stored by the dashboard:",
     whereMac: "Claude Code on your Mac: in Terminal, run this once and paste the key when asked (it is stored in your Keychain):",
-    whereWeb: "Claude Code on the web / iPhone: claude.ai/code → environment settings → add the environment variable AICOS_AGENT_KEY with this key.",
+    whereWeb: "Claude Code on the web / iPhone: claude.ai/code → environment selector under the message box → ⚙ on your environment → Network secrets → Add secret. Allowed websites: qdezhdwmjrmpqjgzludj.supabase.co · Header name: X-Aicos-Agent-Key · Prefix: empty · Value: this key. (Not an environment variable — a network secret never enters the cloud machine.)",
     inbox: "Team reports",
     inboxEmpty: "No reports received yet.",
     refresh: "Refresh",

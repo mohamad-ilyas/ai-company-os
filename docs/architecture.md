@@ -75,7 +75,7 @@ flowchart LR
 ## AI team channel
 
 `supabase/migrations/0002_agent_channel.sql`. The CEO creates an agent key (only its SHA-256 hash is stored).
-A Claude session with the key can call one function, `submit_agent_report`, which appends a report to the CEO's
+A Claude session with the key (in the body, or as the `X-Aicos-Agent-Key` header added by a Claude Code on the web network secret, so the key never enters the cloud VM) can call one function, `submit_agent_report`, which appends a report to the CEO's
 inbox (1 MB max, 120/hour). It cannot read or modify anything. The signed-in dashboard claims new reports
 atomically (`claim_agent_reports`, so two devices never apply the same report), validates them
 (`report-schema.ts`), and applies them through the domain layer with an **operator** role

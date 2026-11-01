@@ -785,7 +785,7 @@ export const ar: Dict = {
     keyActive: "مفتاح نشط ينتهي بـ …{hint}، أُنشئ {date}",
     showOnce: "انسخ هذا المفتاح الآن — يظهر مرة واحدة فقط ولا تخزّنه اللوحة:",
     whereMac: "Claude Code على جهاز Mac: نفّذ هذا مرة واحدة في Terminal والصق المفتاح عند الطلب (يُحفظ في سلسلة المفاتيح):",
-    whereWeb: "Claude Code على الويب / iPhone: ‏claude.ai/code ← إعدادات البيئة ← أضف متغير البيئة AICOS_AGENT_KEY بهذا المفتاح.",
+    whereWeb: "Claude Code على الويب / iPhone: ‏claude.ai/code ← محدد البيئة أسفل مربع الرسالة ← ⚙ بجانب بيئتك ← Network secrets ← Add secret. المواقع المسموحة: qdezhdwmjrmpqjgzludj.supabase.co · اسم الترويسة: X-Aicos-Agent-Key · البادئة: فارغة · القيمة: هذا المفتاح. (ليس متغير بيئة — السر الشبكي لا يدخل الجهاز السحابي أبدًا.)",
     inbox: "تقارير الفريق",
     inboxEmpty: "لم تصل أي تقارير بعد.",
     refresh: "تحديث",

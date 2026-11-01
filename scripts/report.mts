@@ -47,22 +47,17 @@ function agentKey(): string | null {
 }
 
 const key = agentKey();
-if (!key) {
-  console.error(
-    "NO_AGENT_KEY: no agent key on this machine. The report was NOT sent.\n" +
-      "Fallback: paste the report JSON into the dashboard → Execution Center → Import team report.\n" +
-      "Setup: dashboard → Settings → AI team channel → Create agent key.",
-  );
-  process.exit(3);
-}
-
 const config = JSON.parse(await readFile(join(process.cwd(), "aicos.config.json"), "utf8"));
 const res = await fetch(`${config.supabaseUrl}/rest/v1/rpc/submit_agent_report`, {
   method: "POST",
   headers: { apikey: config.supabasePublishableKey, "Content-Type": "application/json" },
-  body: JSON.stringify({ p_key: key, p_payload: parsed.report }),
+  body: JSON.stringify(key ? { p_key: key, p_payload: parsed.report } : { p_payload: parsed.report }),
 });
 const body = await res.text();
+if (!res.ok && body.includes("invalid agent key")) {
+  console.error("NO_AGENT_KEY: no valid agent key reached the dashboard; the report was NOT sent. Paste it into Execution Center → Import team report instead.");
+  process.exit(3);
+}
 if (!res.ok) {
   console.error(`SEND FAILED (${res.status}): ${body.slice(0, 500)}`);
   process.exit(1);
