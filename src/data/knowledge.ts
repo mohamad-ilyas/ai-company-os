@@ -328,7 +328,7 @@ Clearing site data in the browser deletes everything that has not been exported.
 2. **Settings → AI team channel → Create agent key.** Copy it once:
    - **Claude Code on the web / iPhone**: claude.ai/code → environment settings → add environment variable \`AICOS_AGENT_KEY\` = the key.
    - **Mac**: run the Keychain command shown in the dialog and paste the key.
-3. In **claude.ai/code**, connect GitHub and allow the repositories \`mohamad-ilyas/agency-projects\` (client work, private) and \`mohamad-ilyas/ai-company-os\` (internal work).
+3. In **claude.ai/code**, connect GitHub and allow the repositories \`mohamad-ilyas/agency-projects\` (client work — public, so no confidential client material) and \`mohamad-ilyas/ai-company-os\` (internal work).
 
 ## A whole client project
 Claude app → **Code** → repository **agency-projects** → type:

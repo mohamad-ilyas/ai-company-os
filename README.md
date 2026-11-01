@@ -62,7 +62,7 @@ Commands (in Claude Code, on the Mac or at claude.ai/code on your phone):
 
 | Command | What happens |
 |---|---|
-| `/new-project <request>` | Full lifecycle: requirements → plan → design → architecture → build → CI test builds → QA → independent review → release prep and approval requests. Client code goes to the private `agency-projects` repository. |
+| `/new-project <request>` | Full lifecycle: requirements → plan → design → architecture → build → CI test builds → QA → independent review → release prep and approval requests. Client code goes to the public `agency-projects` repository (codenames, no confidential material; NDA work needs a private repo). |
 | `/continue-project <key>` | Resume where the team stopped |
 | `/task <employee>: <what>` | One task, reviewed by you in the dashboard |
 | `/run-assignment <packet>` | Run an assignment created in the dashboard |

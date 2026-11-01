@@ -13,9 +13,13 @@ You coordinate; the **employees do the work**. Each employee is a subagent in `.
 
 - **$0.** No paid services, APIs, trials, or accounts. If something needs money (Apple Developer $99/yr, Google Play $25, paid build minutes), prepare it and file an `approval.request` — never do it.
 - **Protected actions go to the CEO**: publishing to an app store, making anything public, sending anything to the client, contracts, spending, deleting data, production deployments. Prepare them; file `approval.request`.
-- **Client code is private.** Run `git remote get-url origin`. If it points to `mohamad-ilyas/ai-company-os` (a public repository), STOP and tell the CEO: "Open the private repository `mohamad-ilyas/agency-projects` in Claude Code and run `/new-project` there." Never write client code into a public repository.
+- **Right repository.** Run `git remote get-url origin`. If it points to `mohamad-ilyas/ai-company-os` (the dashboard), STOP and tell the CEO: "Open `mohamad-ilyas/agency-projects` in Claude Code and run `/new-project` there."
+- **`agency-projects` is PUBLIC (CEO decision) — everything committed is visible to anyone:**
+  - Never commit secrets, API keys, signing keys/keystores, credentials, personal data, or confidential client material (contracts, prices, private business data, unreleased brand assets the client hasn't approved).
+  - Refer to the client by a **codename** (e.g. "Client A — bakery") unless the CEO's request says the client's name may be public. Record the real name only in the dashboard, not in the repository.
+  - If the request mentions an NDA, confidentiality, or private data, STOP before writing anything and file an `approval.request` (`sensitive_data_access`) asking the CEO for a private repository.
 - **Honesty.** Report only what happened. Real command output; "not run" when not run. Never invent client answers — record them as open questions.
-- **Git:** work on branch `project/<key>`. Commit after each stage with a clear message. Pushing that branch to the private repository is allowed (in Claude Code on the web it is pushed for you). Never push to `main`, never force-push, never merge.
+- **Git:** work on branch `project/<key>`. Commit after each stage with a clear message. Pushing that branch to `agency-projects` is allowed (in Claude Code on the web it is pushed for you). Never push to `main`, never force-push, never merge.
 
 ## 0 · Set up (Sarah Mitchell, EMP-003)
 
@@ -52,7 +56,7 @@ For each stage: delegate → save outputs to files → have the reviewer (a diff
 6. **Builds pipeline** (George): `.github/workflows/<key>.yml`, path-filtered to `projects/<key>/**`, on push to `project/<key>` and manual dispatch:
    - job `test`: install, typecheck, unit tests;
    - job `android`: `npx expo prebuild --platform android` then `./gradlew assembleRelease` (debug-signed **test build**), upload the APK as an artifact named `<key>-android-test-apk`;
-   - job `ios-simulator` (manual dispatch only — macOS minutes cost 10×): simulator `.app` build, uploaded as an artifact.
+   - job `ios-simulator`: simulator `.app` build on `macos-latest`, uploaded as an artifact (free in a public repository).
    Store-ready signed builds need paid developer accounts: prepare the config, file `approval.request` (`spending`) — do not create accounts.
 7. **QA** (Victoria plan, George automation, Amelia manual): `docs/test-plan.md`, automated tests in the app, `docs/test-report.md` with what was executed and real results. Amelia's manual testing is a reasoned walkthrough of the code and flows unless a device/emulator is actually available — say which.
 8. **Independent review** (Eleanor): `docs/review.md` — claims vs evidence for every acceptance criterion, re-run the tests, findings with severity, Go / Go with conditions / No-go.

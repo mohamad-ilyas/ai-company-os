@@ -29,8 +29,9 @@ identity; don't change it.
 
 `/new-project`, `/continue-project`, `/task`, `/run-assignment` (in `.claude/commands/`). Work is reported with
 `node scripts/aicos-report.mjs <report.json>` (format: `docs/agent-report.md`); the dashboard applies reports
-through `src/lib/execution/apply-report.ts` with an operator role. Client code never goes in this public repo —
-it belongs in the private `agency-projects` repo (kit: `npm run kit:export -- ../agency-projects`).
+through `src/lib/execution/apply-report.ts` with an operator role. Client code never goes in this repo —
+it belongs in `agency-projects` (public by CEO decision; no confidential client material; kit:
+`npm run kit:export -- ../agency-projects`).
 
 ## Running an assignment
 

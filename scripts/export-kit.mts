@@ -1,5 +1,5 @@
 // Exports the "studio kit" — the AI team, its commands, and the reporting channel —
-// into the private client-projects repository, so /new-project can run there.
+// into the client-projects repository (agency-projects), so /new-project can run there.
 // Usage: npm run kit:export -- ../agency-projects
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -54,9 +54,10 @@ build/
 
 await write(
   "CLAUDE.md",
-  `# Agency projects (private)
+  `# Agency projects (public)
 
-Client work by the AI Company OS team. **This repository is private — keep it that way.**
+Client work by the AI Company OS team. **This repository is PUBLIC** (CEO decision, for free unlimited builds):
+everything committed here is visible to anyone. See the rules below before writing anything.
 Dashboard: https://mohamad-ilyas.github.io/ai-company-os/ (source: mohamad-ilyas/ai-company-os).
 
 - Start a client project: \`/new-project <request>\`. Resume: \`/continue-project <key>\`. One task: \`/task <employee>: <what>\`.
@@ -67,6 +68,8 @@ Dashboard: https://mohamad-ilyas.github.io/ai-company-os/ (source: mohamad-ilyas
   The agent key comes from \`AICOS_AGENT_KEY\` or the macOS Keychain item \`aicos-agent-key\`; never write it to a file.
 
 ## Non-negotiables
+- Public repository: never commit secrets, signing keys, credentials, personal data, or confidential client material.
+  Use client codenames unless the CEO said the name may be public. NDA/confidential work → ask the CEO for a private repo.
 - $0: no paid services, APIs, trials, or accounts. Apple Developer ($99/yr) and Google Play ($25) need CEO approval.
 - Protected actions (store publishing, anything public, client communication, contracts, spending, deleting data,
   production deployment) are prepared and sent to the CEO's Approval Center — never performed.
@@ -79,7 +82,7 @@ await write(
   "README.md",
   `# Agency projects
 
-Private workspace where the AI Company OS team builds client projects. Each project is in \`projects/<key>/\`
+Public workspace where the AI Company OS team builds client projects. Each project is in \`projects/<key>/\`
 on its own branch, with requirements, design, architecture, code, tests, review, and release notes.
 
 Progress, outputs, and approvals appear in the dashboard: https://mohamad-ilyas.github.io/ai-company-os/
