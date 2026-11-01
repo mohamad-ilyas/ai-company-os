@@ -18,6 +18,22 @@ export interface StoreBridge {
   backup: (s: CompanyState) => void;
   onLocalChange: (fn: () => void) => () => void;
   notify: (kind: "conflict" | "pulled" | "invalid_remote") => void;
+  /** Validate and apply one AI team report; returns the outcome to record in the inbox. */
+  applyReport: (payload: unknown) => ReportOutcome;
+}
+
+export interface ReportOutcome {
+  outcome: "applied" | "partial" | "rejected";
+  detail: string;
+}
+
+export interface InboxReport {
+  id: number;
+  received_at: string;
+  claimed_at: string | null;
+  outcome: ReportOutcome["outcome"] | null;
+  outcome_detail: string | null;
+  payload: { summary?: string; source?: string; actions?: unknown[] } & Record<string, unknown>;
 }
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -77,6 +93,7 @@ async function reconcile(): Promise<void> {
       writeMeta({ owner: uid, base: Number(remote!.revision), dirty: false });
       bridge.notify(decision.kind === "conflict" ? "conflict" : "pulled");
     }
+    await ingestReports();
     setCloudInfo({ status: "synced", lastSyncedAt: new Date().toISOString(), error: null });
   } catch (err) {
     const { offline, message } = describe(err);
@@ -108,6 +125,17 @@ async function push(uid: string, base: number) {
   if (changedSince) again = true;
 }
 
+/** Claim new AI team reports (atomically, so two devices never apply the same one) and apply them. */
+async function ingestReports() {
+  if (!bridge || readMeta().dirty) return; // apply only on top of a fully synced state
+  const { data, error } = await db().rpc("claim_agent_reports");
+  if (error) throw error;
+  for (const row of (data ?? []) as InboxReport[]) {
+    const result = bridge.applyReport(row.payload);
+    await db().from("agent_reports").update({ outcome: result.outcome, outcome_detail: result.detail.slice(0, 4000) }).eq("id", row.id);
+  }
+}
+
 function schedulePush() {
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => void reconcile(), PUSH_DELAY_MS);
@@ -124,8 +152,10 @@ async function checkRemote() {
     setCloudInfo({ status: offline ? "offline" : "error", error: message });
     return;
   }
-  if (!data || Number(data.revision) !== meta.base) void reconcile();
-  else setCloudInfo({ status: "synced", lastSyncedAt: new Date().toISOString(), error: null });
+  if (!data || Number(data.revision) !== meta.base) return void reconcile();
+  const pending = await db().from("agent_reports").select("id", { count: "exact", head: true }).is("claimed_at", null);
+  if ((pending.count ?? 0) > 0) return void reconcile();
+  setCloudInfo({ status: "synced", lastSyncedAt: new Date().toISOString(), error: null });
 }
 
 let started = false;
@@ -173,4 +203,41 @@ export async function syncNow() {
 export async function signOut() {
   await db().auth.signOut();
   writeMeta({ owner: null, base: 0, dirty: false });
+}
+
+// ---------------------------------------------------------------- agent key & inbox (CEO only)
+
+export async function getAgentKeyInfo(): Promise<{ hint: string; createdAt: string } | null> {
+  const { data, error } = await db().from("agent_keys").select("key_hint, created_at").maybeSingle();
+  if (error) throw error;
+  return data ? { hint: data.key_hint as string, createdAt: data.created_at as string } : null;
+}
+
+/** Creates or replaces the agent key. The plaintext key is returned once and never stored by the app. */
+export async function createAgentKey(): Promise<string> {
+  const { data, error } = await db().rpc("create_agent_key");
+  if (error) throw error;
+  return data as string;
+}
+
+export async function revokeAgentKey(): Promise<void> {
+  const { error } = await db().rpc("revoke_agent_key");
+  if (error) throw error;
+}
+
+export async function listReports(limit = 20): Promise<InboxReport[]> {
+  const { data, error } = await db()
+    .from("agent_reports")
+    .select("id, received_at, claimed_at, outcome, outcome_detail, payload")
+    .order("id", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as InboxReport[];
+}
+
+/** Applies a report again (e.g. after a sync conflict discarded it). Upserts make this safe for projects and tasks. */
+export async function reapplyReport(row: InboxReport): Promise<ReportOutcome> {
+  const result = bridge!.applyReport(row.payload);
+  await db().from("agent_reports").update({ outcome: result.outcome, outcome_detail: result.detail.slice(0, 4000) }).eq("id", row.id);
+  return result;
 }

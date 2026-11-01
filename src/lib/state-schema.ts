@@ -76,6 +76,8 @@ const project = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   sample: z.boolean(),
+  extKey: z.string().max(100).nullable().optional(),
+  repoUrl: z.string().max(500).nullable().optional(),
 });
 
 const history = z.object({ at: z.string(), actor, key: z.string(), params: z.record(z.string(), z.string()).optional() });
@@ -104,6 +106,7 @@ const task = z.object({
   startedAt: z.string().nullable(),
   completedAt: z.string().nullable(),
   sample: z.boolean(),
+  extKey: z.string().max(100).nullable().optional(),
 });
 
 const execution = z.object({

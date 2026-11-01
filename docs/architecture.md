@@ -72,6 +72,16 @@ flowchart LR
 - Production deploys go through the `github-pages` environment; add the CEO as a
   required reviewer so GitHub enforces the approval gate.
 
+## AI team channel
+
+`supabase/migrations/0002_agent_channel.sql`. The CEO creates an agent key (only its SHA-256 hash is stored).
+A Claude session with the key can call one function, `submit_agent_report`, which appends a report to the CEO's
+inbox (1 MB max, 120/hour). It cannot read or modify anything. The signed-in dashboard claims new reports
+atomically (`claim_agent_reports`, so two devices never apply the same report), validates them
+(`report-schema.ts`), and applies them through the domain layer with an **operator** role
+(`apply-report.ts`): the team can create and progress work but cannot decide approvals, delete data, change
+settings, or complete protected tasks. Outcomes are written back to the inbox, where the CEO can re-apply a report.
+
 ## Cloud sync (ADR-002)
 
 `src/lib/cloud/` mirrors the state to Supabase (free tier: 500 MB DB, pauses after

@@ -9,11 +9,16 @@ import { z } from "zod";
 import { EMPLOYEES } from "../src/data/workforce";
 import { agentFile } from "../src/lib/agent-file";
 import { executionResultSchema } from "../src/lib/execution/result-schema";
+import { agentReportSchema } from "../src/lib/execution/report-schema";
 
 const check = process.argv.includes("--check");
 const root = process.cwd();
 const outputs = new Map<string, string>();
 
+outputs.set(
+  join("docs", "agent-report.schema.json"),
+  JSON.stringify(z.toJSONSchema(agentReportSchema, { io: "input" }), null, 2) + "\n",
+);
 for (const e of EMPLOYEES) outputs.set(join(".claude", "agents", `${e.slug}.md`), agentFile(e));
 outputs.set(
   join("docs", "execution-result.schema.json"),

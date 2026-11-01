@@ -51,6 +51,24 @@ An AI employee is a **profile** — not a background process. Nothing runs unles
   without use — unpause it at supabase.com/dashboard.
 - Roles (CEO / Operator / Viewer) are UI safeguards; the data itself is protected by sign-in + RLS.
 
+## The AI team channel
+
+Claude sessions report the team's work straight into the dashboard: projects, tasks, each employee's output and
+review, deliverables, messages, and approval requests. A session needs an **agent key** (Settings → AI team
+channel), which can only *add reports to your inbox* — it can't read or change anything. The dashboard applies
+each report with the normal rules: the team can't decide approvals, delete data, or complete protected tasks.
+
+Commands (in Claude Code, on the Mac or at claude.ai/code on your phone):
+
+| Command | What happens |
+|---|---|
+| `/new-project <request>` | Full lifecycle: requirements → plan → design → architecture → build → CI test builds → QA → independent review → release prep and approval requests. Client code goes to the private `agency-projects` repository. |
+| `/continue-project <key>` | Resume where the team stopped |
+| `/task <employee>: <what>` | One task, reviewed by you in the dashboard |
+| `/run-assignment <packet>` | Run an assignment created in the dashboard |
+
+See `docs/agent-report.md` and Knowledge Base → *SOP: Request work from your iPhone*.
+
 ## From your phone
 
 - **Writing, plans, specs, reviews:** Execution Center → assignment → *Copy chat prompt* → Claude app → paste the
@@ -64,9 +82,8 @@ An AI employee is a **profile** — not a background process. Nothing runs unles
 The workflow in `.github/workflows/ci-deploy.yml` lints, type-checks, runs unit and E2E tests, builds, and
 deploys `main` to `https://<user>.github.io/ai-company-os/`.
 
-Cloud sync is enabled by two repository **variables** (Settings → Secrets and variables → Actions → Variables):
-`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Run `supabase/migrations/0001_company_state.sql` once in the
-Supabase SQL editor.
+Cloud sync connects to the Supabase project in `aicos.config.json` (public URL and publishable key only).
+The database schema is in `supabase/migrations/`.
 
 One-time setup (needs the repository owner):
 1. Create the repository under `mohamad-ilyas`. It must be **public** for free GitHub Pages.

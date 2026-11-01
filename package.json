@@ -13,7 +13,9 @@
     "workforce:sync": "tsx scripts/sync-workforce.mts",
     "workforce:check": "tsx scripts/sync-workforce.mts --check",
     "result:check": "tsx scripts/check-result.mts",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run workforce:check && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run workforce:check && npm run build",
+    "report": "tsx scripts/report.mts",
+    "kit:export": "tsx scripts/export-kit.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

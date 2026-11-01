@@ -24,6 +24,7 @@ export default defineConfig({
     url: `${BASE}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
-    env: { NEXT_PUBLIC_BASE_PATH: "/ai-company-os" },
+    // E2E runs in local-only mode: empty Supabase settings switch cloud sync off.
+    env: { NEXT_PUBLIC_BASE_PATH: "/ai-company-os", NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_KEY: "" },
   },
 });

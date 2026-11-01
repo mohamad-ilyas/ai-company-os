@@ -124,3 +124,48 @@ test("analytics excludes sample data by default", async ({ page }) => {
   await page.getByLabel("Include sample data").check();
   await expect(page.getByTestId("kpi-completed")).not.toHaveText(real!);
 });
+
+test("team report import: creates project, tasks, work and review attributed to employees", async ({ page }) => {
+  const errors = watchErrors(page);
+  const report = {
+    schema: "aicos.report/v1",
+    reportId: "e2e-report-0001",
+    sentAt: "2026-11-03T09:40:00Z",
+    source: "claude_code_web",
+    summary: "Requirements done",
+    actions: [
+      { type: "project.upsert", key: "lumen-app", name: "Lumen fitness app", client: "Lumen Gym", repoUrl: "https://github.com/mohamad-ilyas/agency-projects/tree/project/lumen-app/projects/lumen-app" },
+      { type: "task.upsert", key: "lumen-app/requirements", projectKey: "lumen-app", title: "Lumen requirements", assigneeId: "EMP-002" },
+      { type: "task.upsert", key: "lumen-app/build", projectKey: "lumen-app", title: "Lumen build", assigneeId: "EMP-007", dependsOn: ["lumen-app/requirements"] },
+      {
+        type: "work.record", employeeId: "EMP-002", taskKey: "lumen-app/requirements", title: "Lumen requirements", instructions: "Write them",
+        status: "completed", summary: "8 stories", output: "## Lumen requirements\n\n- FR-1 Book a class",
+        review: { reviewerId: "EMP-003", decision: "approved", notes: "Good" },
+      },
+      { type: "message.post", kind: "project", projectKey: "lumen-app", authorId: "EMP-003", body: "Requirements approved — Thomas starts the build." },
+      { type: "work.record", employeeId: "EMP-007", taskKey: "lumen-app/build", title: "Self-reviewed", instructions: "x", status: "completed", review: { reviewerId: "EMP-007", decision: "approved" } },
+    ],
+  };
+  await open(page, "/execution/");
+  await page.getByTestId("import-report").click();
+  await page.getByTestId("report-paste").fill("Report:\n```json\n" + JSON.stringify(report) + "\n```");
+  await page.getByTestId("apply-report").click();
+  await expect(page.getByTestId("toast-success")).toContainText("6 of 6 actions applied");
+  await expect(page.getByTestId("toast-success")).toContainText("self-review ignored");
+
+  await open(page, "/projects/");
+  await page.getByRole("link", { name: "Lumen fitness app" }).click();
+  await expect(page.getByRole("link", { name: /agency-projects/ })).toBeVisible();
+  await page.getByRole("tab", { name: /Tasks/ }).click();
+  const rows = page.getByTestId("project-tasks").locator("tbody tr");
+  await expect(rows.filter({ hasText: "Lumen requirements" })).toContainText("Completed");
+  // The build was self-reviewed, so it stays under review for a real reviewer.
+  await expect(rows.filter({ hasText: "Lumen build" })).toContainText("Under review");
+  await page.getByRole("tab", { name: "Discussion" }).click();
+  await expect(page.getByTestId("thread").first()).toContainText("Thomas starts the build");
+
+  await open(page, "/activity/");
+  await page.getByTestId("activity-search").fill("approved");
+  await expect(page.getByTestId("activity-list")).toContainText("Sarah Mitchell");
+  expect(errors).toEqual([]);
+});

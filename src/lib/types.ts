@@ -112,6 +112,10 @@ export interface Project {
   updatedAt: string;
   /** Demo content shipped with the app; excluded from real KPIs. */
   sample: boolean;
+  /** Stable key chosen by the AI team (agent reports reference projects by it). */
+  extKey?: string | null;
+  /** Source repository, when the team publishes the project to GitHub. */
+  repoUrl?: string | null;
 }
 
 export const TASK_STATUSES = [
@@ -173,6 +177,8 @@ export interface Task {
   startedAt: string | null;
   completedAt: string | null;
   sample: boolean;
+  /** Stable key chosen by the AI team (agent reports reference tasks by it). */
+  extKey?: string | null;
 }
 
 export const WORKFLOW_STAGES = [

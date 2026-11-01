@@ -9,6 +9,8 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore, type ReactNode }
 import { createSeed } from "@/data/seed";
 import { DomainError, log, type Ctx } from "./domain";
 import { parseCompanyState } from "./state-schema";
+import { parseAgentReport } from "./execution/report-schema";
+import { applyAgentReport } from "./execution/apply-report";
 import { formatDate, formatDateTime, makeT, pick, type Translate } from "./i18n";
 import type { ActorId, CompanyState, EmployeeId, L10n, Locale } from "./types";
 import { useToast } from "@/components/ui/toast";
@@ -113,6 +115,16 @@ export function restoreBackup(): boolean {
   return setState(parsed.state);
 }
 
+/** Validates and applies an AI team report to the current state (also used by manual import). */
+export function applyReportToStore(payload: unknown): { outcome: "applied" | "partial" | "rejected"; detail: string } {
+  const parsed = parseAgentReport(payload);
+  if (!parsed.ok) return { outcome: "rejected", detail: parsed.issues.join("; ") };
+  const { state, applied, warnings } = applyAgentReport(current!, new Date().toISOString(), parsed.report);
+  setState(state);
+  const detail = [`${applied} of ${parsed.report.actions.length} actions applied`, ...warnings].join("; ");
+  return { outcome: warnings.length === 0 ? "applied" : applied > 0 ? "partial" : "rejected", detail };
+}
+
 let recoveredOnLoad = false;
 
 /** Loads lazily on the first client read; the server snapshot is null so prerendered HTML shows the fallback. */
@@ -148,6 +160,13 @@ export function StoreProvider({ children, fallback }: { children: ReactNode; fal
         onLocalChange: (fn) => {
           changeListeners.add(fn);
           return () => changeListeners.delete(fn);
+        },
+        applyReport: (payload) => {
+          const result = applyReportToStore(payload);
+          const t = makeT(current!.settings.locale);
+          if (result.outcome === "rejected") toast.error(t("agent.received", { detail: result.detail }));
+          else toast.success(t("agent.received", { detail: result.detail }));
+          return result;
         },
         notify: (kind) => {
           const t = makeT(current!.settings.locale);

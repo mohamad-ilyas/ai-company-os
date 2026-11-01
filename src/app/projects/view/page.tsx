@@ -9,7 +9,7 @@ import { Badge, BulletList, Button, Card, CardBody, CardHeader, EmptyState, Fiel
 import { Dialog, useConfirm } from "@/components/ui/dialog";
 import { Tabs } from "@/components/ui/tabs";
 import { Meter } from "@/components/ui/charts";
-import { ActivityList, ActorChip, PriorityBadge, ProjectStatusBadge, SampleBadge, TaskStatusBadge, useQueryParam } from "@/components/common";
+import { ActivityList, ActorChip, PriorityBadge, ProjectStatusBadge, RefLink, SampleBadge, TaskStatusBadge, useQueryParam } from "@/components/common";
 import { ProjectFormDialog } from "@/components/project-form";
 import { TaskFormDialog } from "@/components/task-form";
 import { Thread } from "@/components/thread";
@@ -205,6 +205,7 @@ function ProjectView() {
                       { k: t("common.targetDate"), v: date(p.targetDate) },
                       { k: t("projects.budget"), v: p.budget === null ? t("common.notSet") : `$${p.budget.toLocaleString()}` },
                       { k: t("common.manager"), v: <ActorChip actor={p.managerId} size={24} /> },
+                      ...(p.repoUrl ? [{ k: "GitHub", v: <RefLink link={{ label: p.repoUrl.replace(/^https:\/\/github\.com\//, ""), url: p.repoUrl }} /> }] : []),
                     ]}
                   />
                   <p className="text-xs text-muted">{t("projects.budgetHint")}</p>

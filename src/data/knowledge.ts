@@ -317,6 +317,38 @@ Clearing site data in the browser deletes everything that has not been exported.
 **With cloud sync on** (Settings → Cloud sync), the company is also saved in your private Supabase project and every signed-in device stays in step. Keep exporting occasionally anyway: the free project pauses after a week without use (unpause it at supabase.com/dashboard), and an export is your copy if you ever leave Supabase.`,
   },
   {
+    id: "KB-018",
+    title: "SOP: Request work from your iPhone",
+    category: "sop",
+    tags: ["phone", "execution", "how-to", "agent-channel"],
+    authorId: "ceo",
+    updatedAt: "2026-11-01T22:00:00.000Z",
+    body: `## One-time setup
+1. **Dashboard → Settings → Cloud sync**: sign in with your email link — on the iPhone and on the Mac. Both now show the same company.
+2. **Settings → AI team channel → Create agent key.** Copy it once:
+   - **Claude Code on the web / iPhone**: claude.ai/code → environment settings → add environment variable \`AICOS_AGENT_KEY\` = the key.
+   - **Mac**: run the Keychain command shown in the dialog and paste the key.
+3. In **claude.ai/code**, connect GitHub and allow the repositories \`mohamad-ilyas/agency-projects\` (client work, private) and \`mohamad-ilyas/ai-company-os\` (internal work).
+
+## A whole client project
+Claude app → **Code** → repository **agency-projects** → type:
+
+> /new-project Cedar Bakery wants an iOS + Android ordering app: menu, cart, pickup time, Arabic + English
+
+The team works stage by stage and reports each one. In the dashboard you see the project, its tasks per employee, every employee's output and review, GitHub links, and test builds — and approvals waiting for you. If the session stops, type \`/continue-project cedar-app\`.
+
+## One task
+> /task Henry: redesign the checkout screen for RTL in cedar-app
+
+The result appears in the Execution Center for you to approve or send back.
+
+## Writing work without code (any Claude chat)
+Execution Center → New assignment → *Claude chat* → *Copy chat prompt* → paste in the Claude app → paste the reply back into *Import the result*.
+
+## What still needs you
+Approvals (store publishing, anything sent to a client, spending) and merging code into \`main\`. Store publishing needs paid developer accounts (Apple $99/yr, Google $25 once) — the team will ask first.`,
+  },
+  {
     id: "KB-017",
     title: "ADR-002: Cloud sync with Supabase (free tier)",
     category: "decision",

@@ -41,7 +41,12 @@ Follow these steps exactly.
    ```
    Use `"needs_input"` with `openQuestions` when essential inputs were missing, and `"failed"` with `errors` when the work could not be done. Only list deliverables that actually exist. Set `handoff` to `{ "to": "EMP-xxx", "note": "…" }` when the next lifecycle stage belongs to a colleague.
 9. **Validate it:** `npm run result:check -- company/outbox/<executionId>.result.json`. Fix the file until it prints `OK`.
-10. **Report to the CEO** in a few lines: status, what was produced, files changed (if any).
-    - If the packet came from a file on this computer, end with: "Import `company/outbox/<executionId>.result.json` in the Execution Center to review it."
-    - If the packet was pasted (the CEO is likely on a phone and cannot reach this machine's files), end your reply with the **complete result JSON in one ```json block** and say: "Copy this block and paste it into Import the result in the Execution Center."
-    Do not commit or push unless the CEO explicitly asks. In Claude Code on the web, code changes are saved on a separate branch for the CEO to review — never merge to `main`; merging deploys only after the CEO approves the deployment in GitHub.
+10. **Deliver it to the dashboard.** Write `company/outbox/<executionId>.report.json`:
+    ```json
+    { "schema": "aicos.report/v1", "reportId": "<executionId>-result", "sentAt": "<now>", "source": "claude_code or claude_code_web",
+      "summary": "<one line>", "actions": [{ "type": "execution.result", "result": <the result object from step 8> }] }
+    ```
+    and run `node scripts/aicos-report.mjs company/outbox/<executionId>.report.json`.
+    - `SENT` → the dashboard records it automatically on its next sync.
+    - `NO_AGENT_KEY` → fall back: if the packet came from a file on this computer, tell the CEO to import `company/outbox/<executionId>.result.json` in the Execution Center; if it was pasted (likely from a phone), end your reply with the **complete result JSON in one ```json block** to paste into *Import the result*.
+11. **Report to the CEO** in a few lines: status, what was produced, files changed (if any), and how it reached the dashboard. Do not commit or push unless the CEO explicitly asks. In Claude Code on the web, code changes are saved on a separate branch for the CEO to review — never merge to `main`.

@@ -25,6 +25,13 @@ identity; don't change it.
   employee as working unless an assignment was actually started.
 - **No secrets** in the repo, build output, or logs.
 
+## Commands and the agent channel
+
+`/new-project`, `/continue-project`, `/task`, `/run-assignment` (in `.claude/commands/`). Work is reported with
+`node scripts/aicos-report.mjs <report.json>` (format: `docs/agent-report.md`); the dashboard applies reports
+through `src/lib/execution/apply-report.ts` with an operator role. Client code never goes in this public repo —
+it belongs in the private `agency-projects` repo (kit: `npm run kit:export -- ../agency-projects`).
+
 ## Running an assignment
 
 When the CEO runs `/run-assignment <packet.json or pasted packet>`, follow

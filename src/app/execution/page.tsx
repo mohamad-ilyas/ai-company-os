@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Info, Plus } from "lucide-react";
+import { FileInput, Info, Plus } from "lucide-react";
 import { useCompany, useI18n } from "@/lib/store";
-import { Card, EmptyState, Notice, PageHeader, Select, tableClass } from "@/components/ui/primitives";
+import { ImportReportDialog } from "@/components/agent-channel";
+import { Button, Card, EmptyState, Notice, PageHeader, Select, tableClass } from "@/components/ui/primitives";
 import { StatTile } from "@/components/ui/charts";
 import { ActorChip, ExecutionStatusBadge, LinkButton, ReviewBadge, SampleBadge } from "@/components/common";
 import { can } from "@/lib/domain";
@@ -18,6 +19,7 @@ export default function ExecutionCenterPage() {
   useDocumentTitle(t("execution.title"));
   const [status, setStatus] = useState<ExecutionStatus | "">("");
   const [employee, setEmployee] = useState<EmployeeId | "">("");
+  const [importing, setImporting] = useState(false);
   const rows = useMemo(
     () => s.executions.filter((e) => (!status || e.status === status) && (!employee || e.employeeId === employee)),
     [s.executions, status, employee],
@@ -31,10 +33,16 @@ export default function ExecutionCenterPage() {
         subtitle={t("execution.subtitle")}
         actions={
           can(s.settings.role, "write") && (
-            <LinkButton href={routes.executionNew()} variant="primary" testId="new-assignment">
-              <Plus className="size-4" />
-              {t("execution.new")}
-            </LinkButton>
+            <>
+              <Button onClick={() => setImporting(true)} data-testid="import-report">
+                <FileInput className="size-4" />
+                {t("agent.importTitle")}
+              </Button>
+              <LinkButton href={routes.executionNew()} variant="primary" testId="new-assignment">
+                <Plus className="size-4" />
+                {t("execution.new")}
+              </LinkButton>
+            </>
           )
         }
       />
@@ -98,6 +106,7 @@ export default function ExecutionCenterPage() {
           </div>
         )}
       </Card>
+      <ImportReportDialog open={importing} onClose={() => setImporting(false)} />
     </>
   );
 }
