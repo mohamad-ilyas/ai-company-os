@@ -663,6 +663,12 @@ export const en = {
     taskComments: "Recent task comments",
     onlyCeoAnnounce: "Only the CEO can post announcements.",
     directHint: "Only Charlotte (COO) and you write here. She brings final outputs and urgent decisions.",
+    askTitle: "Message Charlotte",
+    askPlaceholder: "Write to Charlotte — a question, an instruction, or an urgent decision…",
+    askSend: "Send to Charlotte",
+    askHow: "Opens Claude with your message ready in the agency-projects repository. Press send there — Charlotte answers in that chat within seconds, and her reply is added to this Direct line.",
+    askOpened: "Message saved. Claude opened in a new tab — press send there.",
+    askPopupBlocked: "Your browser blocked the new tab. Use this link:",
   },
   deliverables: {
     title: "Deliverables & files",

@@ -7,6 +7,7 @@ import { useCompany, useI18n } from "@/lib/store";
 import { Card, CardBody, CardHeader, Notice, PageHeader } from "@/components/ui/primitives";
 import { ActorChip, SampleBadge } from "@/components/common";
 import { Thread } from "@/components/thread";
+import { AskCoo } from "@/components/ask-coo";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/components/shell/use-title";
@@ -80,7 +81,12 @@ export default function CommunicationPage() {
             />
             <CardBody>
               {active.kind === "direct" && <p className="mb-3 text-xs text-muted">{t("communication.directHint")}</p>}
-              <Thread key={`${active.kind}-${active.refId}`} kind={active.kind} refId={active.refId} />
+              <Thread key={`${active.kind}-${active.refId}`} kind={active.kind} refId={active.refId} hideComposer={active.kind === "direct"} />
+              {active.kind === "direct" && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <AskCoo />
+                </div>
+              )}
             </CardBody>
           </Card>
           <Card>

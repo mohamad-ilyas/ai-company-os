@@ -169,3 +169,26 @@ test("team report import: creates project, tasks, work and review attributed to 
   await expect(page.getByTestId("activity-list")).toContainText("Sarah Mitchell");
   expect(errors).toEqual([]);
 });
+
+test("message Charlotte: records on the direct line and opens Claude with /ask-coo prefilled", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __opened: string[] }).__opened = [];
+    window.open = ((url: string) => {
+      (window as unknown as { __opened: string[] }).__opened.push(url);
+      return {} as Window;
+    }) as typeof window.open;
+  });
+  await open(page, "/communication/");
+  await expect(page.getByTestId("channel-direct-all")).toHaveAttribute("aria-current", "true");
+  await page.getByTestId("ask-coo-text").fill("Urgent: is todo-app live? Pause new work until Friday.");
+  await page.getByTestId("ask-coo-send").click();
+  await expect(page.getByTestId("thread")).toContainText("Urgent: is todo-app live?");
+  const opened = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened);
+  expect(opened).toHaveLength(1);
+  const url = new URL(opened[0]);
+  expect(url.origin + url.pathname).toBe("https://claude.ai/code");
+  expect(url.searchParams.get("prompt")).toBe("/ask-coo Urgent: is todo-app live? Pause new work until Friday.");
+  expect(url.searchParams.get("repositories")).toBe("mohamad-ilyas/agency-projects");
+  await open(page, "/");
+  await expect(page.getByText("Urgent: is todo-app live?")).toBeVisible();
+});

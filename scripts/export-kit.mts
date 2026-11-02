@@ -26,7 +26,7 @@ async function copy(rel: string) {
 }
 
 for (const e of EMPLOYEES) await write(join(".claude", "agents", `${e.slug}.md`), agentFile(e));
-for (const c of ["new-project", "quick-app", "continue-project", "task", "learn"]) await copy(join(".claude", "commands", `${c}.md`));
+for (const c of ["new-project", "quick-app", "continue-project", "task", "learn", "ask-coo"]) await copy(join(".claude", "commands", `${c}.md`));
 for (const f of ["scripts/aicos-report.mjs", "aicos.config.json", "docs/agent-report.md", "docs/agent-report.schema.json"]) await copy(f);
 await write("company/outbox/.gitkeep", "");
 

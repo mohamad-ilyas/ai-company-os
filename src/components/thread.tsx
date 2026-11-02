@@ -9,13 +9,13 @@ import { Markdown } from "./ui/markdown";
 import { can, postMessage } from "@/lib/domain";
 import type { ChannelKind } from "@/lib/types";
 
-export function Thread({ kind, refId, emptyText }: { kind: ChannelKind; refId: string | null; emptyText?: string }) {
+export function Thread({ kind, refId, emptyText, hideComposer }: { kind: ChannelKind; refId: string | null; emptyText?: string; hideComposer?: boolean }) {
   const s = useCompany();
   const { t, dateTime, actorName } = useI18n();
   const run = useRun();
   const [body, setBody] = useState("");
   const messages = s.messages.filter((m) => m.kind === kind && (refId === null ? true : m.refId === refId));
-  const canPost = can(s.settings.role, "write") && ((kind !== "announcement" && kind !== "direct") || s.settings.role === "ceo");
+  const canPost = !hideComposer && can(s.settings.role, "write") && ((kind !== "announcement" && kind !== "direct") || s.settings.role === "ceo");
 
   return (
     <div className="flex flex-col gap-4">
@@ -59,7 +59,7 @@ export function Thread({ kind, refId, emptyText }: { kind: ChannelKind; refId: s
           </div>
         </form>
       ) : (
-        kind === "announcement" && <p className="text-xs text-muted">{t("communication.onlyCeoAnnounce")}</p>
+        kind === "announcement" && !hideComposer && <p className="text-xs text-muted">{t("communication.onlyCeoAnnounce")}</p>
       )}
     </div>
   );

@@ -62,6 +62,7 @@ Commands (in Claude Code, on the Mac or at claude.ai/code on your phone):
 
 | Command | What happens |
 |---|---|
+| `/ask-coo <message>` | Talk to Charlotte (COO) now — status, instructions, urgent decisions; recorded on the Direct line |
 | `/quick-app <request>` | Small app or prototype with a lean team; released by Charlotte |
 | `/learn [rotation\|all\|slugs]` | Learning session: research best practices and what's new, update playbooks, publish learning notes |
 | `/new-project <request>` | Full lifecycle: requirements → plan → design → architecture → build → CI test builds → QA → independent review → release prep and approval requests. Client code goes to the public `agency-projects` repository (codenames, no confidential material; NDA work needs a private repo). |
