@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { ArrowLeft, Download, Pencil, PlayCircle } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, ExternalLink, GraduationCap, Pencil, PlayCircle } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
 import { Badge, BulletList, Button, Card, CardBody, CardHeader, Chips, EmptyState, Notice, Select, Textarea, tableClass } from "@/components/ui/primitives";
 import { Dialog } from "@/components/ui/dialog";
@@ -29,7 +29,7 @@ import { routes } from "@/lib/routes";
 import { useDocumentTitle } from "@/components/shell/use-title";
 import type { Availability, Employee } from "@/lib/types";
 
-type Tab = "profile" | "instructions" | "work" | "performance" | "activity";
+type Tab = "profile" | "learning" | "instructions" | "work" | "performance" | "activity";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -96,6 +96,76 @@ function ProfileTab({ e }: { e: Employee }) {
         </Card>
       </div>
       <p className="sr-only">{l(e.title)}</p>
+    </div>
+  );
+}
+
+function LearningTab({ e }: { e: Employee }) {
+  const s = useCompany();
+  const { t, date } = useI18n();
+  const notes = s.knowledge
+    .filter((k) => k.category === "learning" && (k.tags.includes(e.slug) || (k.extKey ?? "").includes(`/${e.slug}`)))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const playbookUrl = `https://github.com/mohamad-ilyas/agency-projects/blob/main/playbooks/${e.slug}.md`;
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader title={<span className="flex items-center gap-2"><GraduationCap className="size-4 text-accent" />{t("employees.learningResources")}</span>} />
+        <CardBody>
+          {e.learning?.resources.length ? (
+            <ul className="grid gap-2 sm:grid-cols-2" data-testid="learning-resources">
+              {e.learning.resources.map((r) => (
+                <li key={r.url}>
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-[13px] text-fg transition-colors hover:border-border-strong hover:bg-surface-2">
+                    <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden />
+                    <span className="min-w-0">
+                      <span className="block">{r.label}</span>
+                      <span dir="ltr" className="block truncate text-xs text-muted">{r.url.replace(/^https?:\/\//, "")}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">—</p>
+          )}
+        </CardBody>
+      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader title={t("employees.learningFocus")} />
+          <CardBody>
+            <BulletList items={e.learning?.focus ?? []} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={<span className="flex items-center gap-2"><BookOpen className="size-4 text-muted" />{t("employees.playbook")}</span>} />
+          <CardBody className="space-y-3">
+            <p className="text-[13px] text-fg-2">{t("employees.playbookHint")}</p>
+            <a href={playbookUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[13px] text-accent hover:underline">
+              {t("employees.openPlaybook")}
+              <ExternalLink className="size-3" aria-hidden />
+            </a>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={t("employees.learningNotes")} />
+          <CardBody>
+            {notes.length === 0 ? (
+              <p className="text-sm text-muted">{t("employees.noLearningNotes")}</p>
+            ) : (
+              <ul className="space-y-2 text-[13px]">
+                {notes.map((k) => (
+                  <li key={k.id}>
+                    <Link href={routes.article(k.id)} className="bidi block text-fg hover:underline">{k.title}</Link>
+                    <span className="text-xs text-muted">{date(k.updatedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -352,6 +422,7 @@ function EmployeeProfile() {
         onChange={setTab}
         tabs={[
           { id: "profile", label: t("employees.profile") },
+          { id: "learning", label: t("employees.learning") },
           { id: "instructions", label: t("employees.instructions") },
           { id: "work", label: t("employees.work"), count: s.tasks.filter((x) => x.assigneeId === e.id).length },
           { id: "performance", label: t("employees.performance") },
@@ -359,6 +430,7 @@ function EmployeeProfile() {
         ]}
       >
         {tab === "profile" && <ProfileTab e={e} />}
+        {tab === "learning" && <LearningTab e={e} />}
         {tab === "instructions" && <InstructionsTab e={e} />}
         {tab === "work" && <WorkTab e={e} />}
         {tab === "performance" && <PerformanceTab e={e} />}

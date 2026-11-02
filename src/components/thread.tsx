@@ -15,7 +15,7 @@ export function Thread({ kind, refId, emptyText }: { kind: ChannelKind; refId: s
   const run = useRun();
   const [body, setBody] = useState("");
   const messages = s.messages.filter((m) => m.kind === kind && (refId === null ? true : m.refId === refId));
-  const canPost = can(s.settings.role, "write") && (kind !== "announcement" || s.settings.role === "ceo");
+  const canPost = can(s.settings.role, "write") && ((kind !== "announcement" && kind !== "direct") || s.settings.role === "ceo");
 
   return (
     <div className="flex flex-col gap-4">

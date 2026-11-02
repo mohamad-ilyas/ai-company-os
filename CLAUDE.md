@@ -25,6 +25,14 @@ identity; don't change it.
   employee as working unless an assignment was actually started.
 - **No secrets** in the repo, build output, or logs.
 
+## Chain of command
+
+Only Charlotte Ashworth (COO, EMP-001) addresses the CEO. Approval levels live in `src/lib/workflow.ts`
+(`APPROVAL_LEVEL`): the COO decides delivery approvals (merge, deploy, release, project data); the CEO decides
+spending, contracts, client communication, and deleting data. Change the workforce in `src/data/workforce/`, bump
+`WORKFORCE_VERSION` so saved companies upgrade (`src/lib/migrate.ts`), then run `npm run workforce:sync` and
+`npm run kit:export -- ../agency-projects`.
+
 ## Commands and the agent channel
 
 `/new-project`, `/continue-project`, `/task`, `/run-assignment` (in `.claude/commands/`). Work is reported with

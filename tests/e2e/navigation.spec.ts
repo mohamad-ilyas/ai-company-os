@@ -38,15 +38,15 @@ for (const [path, heading] of ROUTES) {
   });
 }
 
-test("all 13 employees are listed and the org chart links to profiles", async ({ page }) => {
+test("all 15 employees are listed and the org chart links to profiles", async ({ page }) => {
   await open(page, "/employees/");
-  await expect(page.getByTestId("employee-table").locator("tbody tr")).toHaveCount(13);
+  await expect(page.getByTestId("employee-table").locator("tbody tr")).toHaveCount(15);
   await page.getByTestId("employee-search").fill("Flaky");
   await expect(page.getByTestId("employee-table").locator("tbody tr")).toHaveCount(1);
   await expect(page.getByTestId("employee-table")).toContainText("George Pemberton");
 
   await open(page, "/org/");
-  await expect(page.locator("[data-testid^=org-node-]")).toHaveCount(13);
+  await expect(page.locator("[data-testid^=org-node-]")).toHaveCount(15);
   await page.getByTestId("org-node-EMP-013").click();
   await expect(page.getByTestId("employee-name")).toHaveText("Eleanor Whitfield");
   await expect(page).toHaveURL(/employees\/profile\/\?id=EMP-013/);
@@ -72,4 +72,23 @@ test("internal links keep the base path", async ({ page }) => {
   await open(page, "/");
   await page.getByRole("link", { name: "Approval Center" }).first().click();
   await expect(page).toHaveURL(/\/ai-company-os\/approvals\/$/);
+});
+
+test("org chart: CEO → Charlotte (COO) → departments; learning tab lists resources", async ({ page }) => {
+  await open(page, "/org/");
+  await expect(page.getByTestId("org-node-EMP-001")).toContainText("Single point of contact with the CEO");
+  await expect(page.getByTestId("org-node-EMP-015")).toContainText("Alexander Whitmore");
+  await expect(page.getByTestId("org-node-EMP-014")).toContainText("Edward Langley");
+  await open(page, "/employees/profile/?id=EMP-015");
+  await page.getByRole("tab", { name: "Learning" }).click();
+  await expect(page.getByTestId("learning-resources").locator("li")).toHaveCount(29);
+  await expect(page.getByRole("link", { name: /three\.js documentation/ })).toHaveAttribute("href", "https://threejs.org/docs/");
+});
+
+test("approvals: CEO sees only their own decisions by default", async ({ page }) => {
+  await open(page, "/approvals/");
+  await expect(page.getByRole("tab", { name: /Needs you/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("approval-APR-001")).toHaveCount(0);
+  await page.getByRole("tab", { name: /COO decides/ }).click();
+  await expect(page.getByTestId("approval-APR-001")).toContainText("COO decides");
 });

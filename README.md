@@ -1,7 +1,7 @@
 # AI Company OS
 
 The internal operating platform for an AI-powered digital agency: a CEO dashboard,
-13 senior AI employees with individual instructions, projects, tasks, workflows,
+15 senior AI employees with individual instructions and learning plans, projects, tasks, workflows,
 a CEO Approval Center, and a bridge to run work through your own Claude sessions.
 
 **Cost: $0 on top of Claude Pro.** Static site on GitHub Pages, no backend, no AI API.
@@ -62,12 +62,24 @@ Commands (in Claude Code, on the Mac or at claude.ai/code on your phone):
 
 | Command | What happens |
 |---|---|
+| `/quick-app <request>` | Small app or prototype with a lean team; released by Charlotte |
+| `/learn [rotation\|all\|slugs]` | Learning session: research best practices and what's new, update playbooks, publish learning notes |
 | `/new-project <request>` | Full lifecycle: requirements → plan → design → architecture → build → CI test builds → QA → independent review → release prep and approval requests. Client code goes to the public `agency-projects` repository (codenames, no confidential material; NDA work needs a private repo). |
 | `/continue-project <key>` | Resume where the team stopped |
 | `/task <employee>: <what>` | One task, reviewed by you in the dashboard |
 | `/run-assignment <packet>` | Run an assignment created in the dashboard |
 
 See `docs/agent-report.md` and Knowledge Base → *SOP: Request work from your iPhone*.
+
+## How the company is run
+
+- **Charlotte Ashworth (COO)** is the CEO's only point of contact. She takes requests, runs the team, decides merges,
+  deployments and releases, and delivers the final output on the dashboard's **Direct line**. She asks the CEO only for
+  CEO-level decisions — spending, contracts, client communication, deleting company data — marked urgent when blocking.
+- **Alexander Whitmore** (Principal UI/UX Design Architect) reviews all design, including 3D and motion; **Edward
+  Langley** (Content) reviews all text.
+- Every employee has a **learning plan** (Profile → Learning) and a living playbook in `agency-projects/playbooks/`,
+  kept current by `/learn` (scheduled weekly).
 
 ## From your phone
 

@@ -11,18 +11,24 @@ import { countBy, departmentStats, OPEN_TASK, projectProgress, qualityStats, sco
 import { routes } from "@/lib/routes";
 import { useDocumentTitle } from "@/components/shell/use-title";
 import { useCloud } from "@/lib/cloud/status";
+import { APPROVAL_LEVEL } from "@/lib/workflow";
+import { Markdown } from "@/components/ui/markdown";
 import type { TaskStatus } from "@/lib/types";
 
 const ACTIVE_PROJECT = ["planning", "requirements", "design", "development", "testing", "review", "awaiting_ceo_approval", "ready_for_delivery"];
 
 export default function OverviewPage() {
   const s = useCompany();
-  const { t, l, date } = useI18n();
+  const { t, l, date, dateTime } = useI18n();
   useDocumentTitle(t("overview.title"));
   const inc = s.settings.includeSampleInAnalytics;
   const tasks = scope(s.tasks, inc);
   const projects = scope(s.projects, inc);
-  const approvals = s.approvals.filter((a) => a.status === "pending");
+  // Only the CEO's own decisions; delivery approvals are the COO's.
+  const approvals = s.approvals
+    .filter((a) => a.status === "pending" && APPROVAL_LEVEL[a.action] === "ceo")
+    .sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent));
+  const direct = s.messages.filter((m) => m.kind === "direct" && m.authorId === "EMP-001").slice(-3).reverse();
   const pendingApprovals = scope(approvals, inc).length;
   const byStatus = countBy(tasks, (x) => x.status);
   const n = (k: TaskStatus) => byStatus[k] ?? 0;
@@ -84,6 +90,7 @@ export default function OverviewPage() {
                       <ShieldCheck className="size-4 shrink-0 text-warning" aria-hidden />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-fg">
+                          {a.urgent && <span className="me-1.5 rounded bg-danger-mark/15 px-1.5 py-0.5 text-[11px] font-semibold text-danger">URGENT</span>}
                           {a.title} <SampleBadge show={a.sample} />
                         </p>
                         <p className="text-xs text-muted">
@@ -166,6 +173,22 @@ export default function OverviewPage() {
         </div>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader title={t("overview.directLine")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.communication}>{t("overview.openDirectLine")}</Link>} />
+            <CardBody className="space-y-3">
+              {direct.length === 0 ? (
+                <p className="text-sm text-muted">{t("overview.directLineEmpty")}</p>
+              ) : (
+                direct.map((m) => (
+                  <div key={m.id} className="bidi rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
+                    <Markdown source={m.body.length > 400 ? m.body.slice(0, 400) + "…" : m.body} />
+                    <p className="mt-1 text-xs text-muted">{dateTime(m.at)}</p>
+                  </div>
+                ))
+              )}
+            </CardBody>
+          </Card>
+
           <Card>
             <CardHeader title={t("overview.byDepartment")} />
             <CardBody>

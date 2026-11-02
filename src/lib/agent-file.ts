@@ -12,6 +12,8 @@ function toolsFor(e: Employee): string {
   if (e.departmentId === "engineering" || e.id === "EMP-012") return ENGINEERING_TOOLS;
   // The independent reviewer re-runs builds and tests to verify claims, but never edits the work.
   if (e.id === "EMP-013") return "Read, Grep, Glob, Bash, Write";
+  // The COO merges and releases (git), so she needs the shell.
+  if (e.id === "EMP-001") return "Read, Grep, Glob, Edit, Write, Bash";
   return DOCUMENT_TOOLS;
 }
 
@@ -27,10 +29,15 @@ tools: ${toolsFor(e)}
 
 ${e.systemInstructions}
 
+## Before every assignment
+Read \`playbooks/${e.slug}.md\` in the repository if it exists — your living best-practices playbook, kept current by the learning programme — and apply it.${
+    e.learning ? `\n\nKeep current on: ${e.learning.focus.join("; ")}.` : ""
+  }
+
 ## Your profile
 - Employee ID: ${e.id}
 - Department: ${e.departmentId}
-- Reports to: ${e.reportsTo === "ceo" ? "CEO" : e.reportsTo}
+- Reports to: ${e.reportsTo === "ceo" ? "the CEO (you are the only employee who does)" : `${e.reportsTo} (never contact the CEO directly)`}
 
 ### Responsibilities
 ${list(e.responsibilities)}

@@ -4,17 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import { CheckCircle2, Lock, Plus, ShieldCheck, XCircle } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
-import { Button, Card, CardBody, CardHeader, EmptyState, Field, Input, Notice, PageHeader, Select, Textarea } from "@/components/ui/primitives";
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Field, Input, Notice, PageHeader, Select, Textarea } from "@/components/ui/primitives";
 import { Dialog, useConfirm } from "@/components/ui/dialog";
 import { Tabs } from "@/components/ui/tabs";
 import { ActorChip, ApprovalBadge, LinksEditor, RefLink, RiskBadge, SampleBadge, cleanLinks } from "@/components/common";
 import { can, createApproval, decideApproval } from "@/lib/domain";
-import { PROTECTED_ACTION_RISK } from "@/lib/workflow";
+import { APPROVAL_LEVEL, PROTECTED_ACTION_RISK } from "@/lib/workflow";
 import { routes } from "@/lib/routes";
 import { useDocumentTitle } from "@/components/shell/use-title";
 import { PROTECTED_ACTIONS, type ActorId, type Approval, type LinkRef, type ProtectedAction, type RiskLevel } from "@/lib/types";
 
-type Tab = "pending" | "decided" | "all";
+type Tab = "mine" | "coo" | "decided" | "all";
 
 function NewApprovalDialog({ onClose }: { onClose: () => void }) {
   const s = useCompany();
@@ -142,6 +142,8 @@ function ApprovalCard({ a }: { a: Approval }) {
             <h3 className="bidi mt-1 text-base font-semibold text-fg">{a.title}</h3>
           </div>
           <div className="flex flex-wrap gap-2">
+            {a.urgent && a.status === "pending" && <Badge tone="danger" dot>{t("approvals.urgent")}</Badge>}
+            <Badge tone={APPROVAL_LEVEL[a.action] === "ceo" ? "accent" : "neutral"}>{APPROVAL_LEVEL[a.action] === "ceo" ? t("approvals.levelCeo") : t("approvals.levelCoo")}</Badge>
             <RiskBadge risk={a.risk} />
             <ApprovalBadge status={a.status} />
           </div>
@@ -166,7 +168,11 @@ function ApprovalCard({ a }: { a: Approval }) {
           )}
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted">
-          <span>{t("common.created")}: {dateTime(a.createdAt)}{a.decidedAt && ` · ${t("approvals.decidedAt")}: ${dateTime(a.decidedAt)}`}</span>
+          <span>
+            {t("common.created")}: {dateTime(a.createdAt)}
+            {a.decidedAt && ` · ${t("approvals.decidedAt")}: ${dateTime(a.decidedAt)}`}
+            {a.decidedBy && <> · {t("approvals.decidedBy")}: <ActorChip actor={a.decidedBy} size={16} /></>}
+          </span>
           {a.status === "pending" ? (
             isCeo ? (
               <div className="flex gap-2">
@@ -189,11 +195,13 @@ export default function ApprovalsPage() {
   const s = useCompany();
   const { t } = useI18n();
   useDocumentTitle(t("approvals.title"));
-  const [tab, setTab] = useState<Tab>("pending");
+  const [tab, setTab] = useState<Tab>("mine");
   const [creating, setCreating] = useState(false);
   const pending = s.approvals.filter((a) => a.status === "pending");
+  const mine = pending.filter((a) => APPROVAL_LEVEL[a.action] === "ceo").sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent));
+  const coo = pending.filter((a) => APPROVAL_LEVEL[a.action] === "coo");
   const decided = s.approvals.filter((a) => a.status !== "pending");
-  const list = tab === "pending" ? pending : tab === "decided" ? decided : s.approvals;
+  const list = tab === "mine" ? mine : tab === "coo" ? coo : tab === "decided" ? decided : s.approvals;
 
   return (
     <>
@@ -210,12 +218,14 @@ export default function ApprovalsPage() {
         }
       />
       {!can(s.settings.role, "decide_approvals") && <Notice tone="warning" className="mb-6">{t("approvals.onlyCeo")}</Notice>}
+      <Notice className="mb-6">{t("approvals.cooNote")}</Notice>
       <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
         <Tabs<Tab>
           value={tab}
           onChange={setTab}
           tabs={[
-            { id: "pending", label: t("approvals.pending"), count: pending.length },
+            { id: "mine", label: t("approvals.needsYou"), count: mine.length },
+            { id: "coo", label: t("approvals.cooQueue"), count: coo.length },
             { id: "decided", label: t("approvals.decided"), count: decided.length },
             { id: "all", label: t("approvals.all"), count: s.approvals.length },
           ]}
@@ -227,7 +237,11 @@ export default function ApprovalsPage() {
           <CardBody>
             <ul className="space-y-2 text-[13px] text-fg">
               {PROTECTED_ACTIONS.map((a) => (
-                <li key={a} className="flex items-center gap-2"><Lock className="size-3.5 shrink-0 text-muted" aria-hidden />{t(`protectedAction.${a}`)}</li>
+                <li key={a} className="flex items-center gap-2">
+                  <Lock className="size-3.5 shrink-0 text-muted" aria-hidden />
+                  <span className="flex-1">{t(`protectedAction.${a}`)}</span>
+                  <span className="shrink-0 text-xs text-muted">{APPROVAL_LEVEL[a] === "ceo" ? t("approvals.levelCeo") : t("approvals.levelCoo")}</span>
+                </li>
               ))}
             </ul>
           </CardBody>

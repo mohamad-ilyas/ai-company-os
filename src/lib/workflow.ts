@@ -220,6 +220,27 @@ export const PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
   cancelled: ["planning"],
 };
 
+/**
+ * Who decides each protected action. The COO (EMP-001) holds delegated authority for delivery
+ * decisions; money, contracts, client communication, and deleting company data stay with the CEO.
+ */
+export const APPROVAL_LEVEL: Record<ProtectedAction, "coo" | "ceo"> = {
+  production_deployment: "coo",
+  production_database_change: "coo",
+  public_release: "coo",
+  sensitive_data_access: "coo",
+  irreversible_change: "coo",
+  client_proposal: "ceo",
+  external_communication: "ceo",
+  contractual_commitment: "ceo",
+  spending: "ceo",
+  subscription_purchase: "ceo",
+  billing_change: "ceo",
+  data_deletion: "ceo",
+};
+
+export const COO_ID = "EMP-001" as const;
+
 /** Risk defaults for protected actions — shown when an approval request is created. */
 export const PROTECTED_ACTION_RISK: Record<ProtectedAction, "low" | "medium" | "high" | "critical"> = {
   production_deployment: "high",

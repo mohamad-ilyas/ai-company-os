@@ -20,10 +20,12 @@ import {
   setTaskStatus,
   updateProject,
   updateTask,
+  upsertArticle,
   upsertDeliverable,
+  decideApproval,
   type Ctx,
 } from "../domain";
-import { PROJECT_TRANSITIONS, PROTECTED_ACTION_RISK } from "../workflow";
+import { APPROVAL_LEVEL, COO_ID, PROJECT_TRANSITIONS, PROTECTED_ACTION_RISK } from "../workflow";
 import type { ActorId, CompanyState, EmployeeId, Project, ProjectStatus, Task, TaskStatus } from "../types";
 import type { AgentReport, ReportAction } from "./report-schema";
 import type { ExecutionResult } from "./result-schema";
@@ -251,7 +253,7 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
         return;
       }
       case "message.post": {
-        const refId = a.kind === "department" ? (a.departmentId ?? null) : a.projectKey ? project(a.projectKey).id : null;
+        const refId = a.kind === "department" ? (a.departmentId ?? null) : a.kind === "direct" ? null : a.projectKey ? project(a.projectKey).id : null;
         if (a.kind === "project" && !refId) throw new DomainError("required", { field: "projectKey" });
         if (a.kind === "department" && !refId) throw new DomainError("required", { field: "departmentId" });
         s = postMessage(s, ctx(a.authorId as EmployeeId), { kind: a.kind, refId, body: a.body, authorId: a.authorId as EmployeeId });
@@ -261,6 +263,11 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
         const t = a.taskKey ? task(a.taskKey) : undefined;
         const p = a.projectKey ? project(a.projectKey) : t ? s.projects.find((x) => x.id === t.projectId) : undefined;
         const by = a.requestedBy as EmployeeId;
+        // Only the COO talks to the CEO: CEO-level requests must come from her.
+        if (APPROVAL_LEVEL[a.action] === "ceo" && by !== COO_ID) {
+          throw new DomainError("escalate_via_coo", { action: a.action });
+        }
+        const before = new Set(s.approvals.map((x) => x.id));
         if (t && t.protectedAction === a.action && t.status === "under_review") {
           // The protected task itself goes to the CEO; approving it completes the task.
           s = setTaskStatus(s, ctx(by), t.id, "awaiting_ceo_approval", a.reason);
@@ -279,6 +286,28 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
             taskId: t?.id ?? null,
           });
         }
+        const created = s.approvals.find((x) => !before.has(x.id));
+        if (created && (a.key || a.urgent)) {
+          s = { ...s, approvals: s.approvals.map((x) => (x.id === created.id ? { ...x, extKey: a.key ?? null, urgent: !!a.urgent && by === COO_ID } : x)) };
+        }
+        return;
+      }
+      case "approval.decide": {
+        const target = a.approvalKey
+          ? s.approvals.find((x) => x.extKey === a.approvalKey)
+          : a.taskKey
+            ? s.approvals.find((x) => x.taskId === task(a.taskKey!).id && x.status === "pending")
+            : undefined;
+        if (!target) throw new DomainError("not_found", { id: a.approvalKey ?? a.taskKey ?? "approval" });
+        // decideApproval enforces the COO's limits: CEO-level approvals are refused here.
+        s = decideApproval(s, ctx(COO_ID), target.id, a.decision, a.note);
+        return;
+      }
+      case "knowledge.upsert": {
+        const existing = s.knowledge.find((k) => k.extKey === a.key);
+        let id: string;
+        [s, id] = upsertArticle(s, ctx(a.authorId as EmployeeId), { id: existing?.id, title: a.title, category: a.category, body: a.body, tags: a.tags });
+        s = { ...s, knowledge: s.knowledge.map((k) => (k.id === id ? { ...k, extKey: a.key, authorId: a.authorId as EmployeeId } : k)) };
         return;
       }
       case "deliverable.record": {

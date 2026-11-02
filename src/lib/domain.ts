@@ -2,7 +2,7 @@
 // (permissions, dependencies, CEO approval gates) and the audit log are applied
 // consistently. Each function returns a new state; inputs are never mutated.
 
-import { LIFECYCLE, PROJECT_TRANSITIONS, PROTECTED_ACTION_RISK, TASK_TRANSITIONS } from "./workflow";
+import { APPROVAL_LEVEL, COO_ID, LIFECYCLE, PROJECT_TRANSITIONS, PROTECTED_ACTION_RISK, TASK_TRANSITIONS } from "./workflow";
 import type {
   ActivityEvent,
   ActivityType,
@@ -534,7 +534,7 @@ export function deleteTask(state: CompanyState, ctx: Ctx, id: string): CompanySt
 
 // ---------------------------------------------------------------- approvals
 
-type ApprovalInput = Omit<Approval, "id" | "status" | "decisionNote" | "createdAt" | "decidedAt" | "sample">;
+type ApprovalInput = Omit<Approval, "id" | "status" | "decisionNote" | "createdAt" | "decidedAt" | "sample" | "decidedBy">;
 
 function createApprovalInternal(state: CompanyState, ctx: Ctx, input: ApprovalInput): [CompanyState, string] {
   nonEmpty(input.title, "title");
@@ -560,15 +560,17 @@ export function decideApproval(
   decision: "approved" | "rejected",
   note: string,
 ): CompanyState {
-  require(ctx, "decide_approvals");
   const a = state.approvals.find((x) => x.id === id);
   if (!a) throw new DomainError("not_found", { id });
+  // The CEO decides anything; the COO decides delivery approvals within delegated authority.
+  const cooDecides = ctx.actor === COO_ID && APPROVAL_LEVEL[a.action] === "coo";
+  if (!cooDecides) require(ctx, "decide_approvals");
   if (a.status !== "pending") throw new DomainError("already_decided");
   if (decision === "rejected") nonEmpty(note, "decision_note");
 
   let s: CompanyState = {
     ...state,
-    approvals: replace(state.approvals, { ...a, status: decision, decisionNote: note.trim(), decidedAt: ctx.now }),
+    approvals: replace(state.approvals, { ...a, status: decision, decisionNote: note.trim(), decidedAt: ctx.now, decidedBy: ctx.actor }),
   };
   s = log(s, ctx, decision === "approved" ? "approval" : "rejection", decision === "approved" ? "approval_granted" : "approval_rejected", { id, title: a.title }, { type: "approval", id });
 
@@ -898,6 +900,8 @@ export function postMessage(
   if (input.body.length > 5000) throw new DomainError("too_long", { max: "5000" });
   if (input.kind === "announcement" && ctx.role !== "ceo") throw new DomainError("permission_denied", { permission: "announce" });
   const author: ActorId = input.authorId ?? ctx.actor;
+  // The direct line is only between the CEO and the COO.
+  if (input.kind === "direct" && author !== "ceo" && author !== COO_ID) throw new DomainError("permission_denied", { permission: "direct_line" });
   if (author !== "ceo" && author !== "system") assertEmployee(state, author);
   let [id, s] = nextId(state, "MSG");
   s = { ...s, messages: [...s.messages, { id, kind: input.kind, refId: input.refId, authorId: author, body: input.body.trim(), at: ctx.now, sample: false }] };

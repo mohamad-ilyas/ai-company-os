@@ -84,7 +84,7 @@ test("settings: export, clear sample data, import restores it", async ({ page })
   const path = (await download.path())!;
   const exported = JSON.parse(await readFile(path, "utf8"));
   expect(exported.schema).toBe("aicos.state/v1");
-  expect(exported.employees).toHaveLength(13);
+  expect(exported.employees).toHaveLength(15);
 
   await page.getByTestId("clear-sample").click();
   await confirmDialog(page);
@@ -104,7 +104,7 @@ test("settings: an invalid import is rejected without changing data", async ({ p
   await page.getByTestId("import-file").setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ schema: "nope" })) });
   await expect(page.getByTestId("toast-error")).toContainText("not a valid export");
   await open(page, "/employees/");
-  await expect(page.getByTestId("employee-table").locator("tbody tr")).toHaveCount(13);
+  await expect(page.getByTestId("employee-table").locator("tbody tr")).toHaveCount(15);
 });
 
 test("data persists across reloads and tabs", async ({ page, context }) => {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Building2, FileText, FolderKanban, Gavel, Info, Megaphone, MessageCircle } from "lucide-react";
+import { Building2, FileText, FolderKanban, Gavel, Info, Megaphone, MessageCircle, PhoneCall } from "lucide-react";
 import { useCompany, useI18n } from "@/lib/store";
 import { Card, CardBody, CardHeader, Notice, PageHeader } from "@/components/ui/primitives";
 import { ActorChip, SampleBadge } from "@/components/common";
@@ -20,6 +20,7 @@ export default function CommunicationPage() {
   useDocumentTitle(t("communication.title"));
 
   const general: Channel[] = [
+    { kind: "direct", refId: null, label: t("channelKind.direct"), icon: PhoneCall },
     { kind: "announcement", refId: null, label: t("channelKind.announcement"), icon: Megaphone },
     { kind: "decision", refId: null, label: t("channelKind.decision"), icon: Gavel },
     { kind: "meeting", refId: null, label: t("channelKind.meeting"), icon: FileText },
@@ -78,6 +79,7 @@ export default function CommunicationPage() {
               description={active.kind === "project" && active.refId ? <Link href={routes.project(active.refId)} className="text-accent hover:underline">{active.refId}</Link> : t(`channelKind.${active.kind}`)}
             />
             <CardBody>
+              {active.kind === "direct" && <p className="mb-3 text-xs text-muted">{t("communication.directHint")}</p>}
               <Thread key={`${active.kind}-${active.refId}`} kind={active.kind} refId={active.refId} />
             </CardBody>
           </Card>

@@ -1,4 +1,5 @@
 import type { KnowledgeArticle } from "../lib/types";
+import { EMPLOYEES } from "./workforce";
 
 const at = "2026-11-01T18:00:00.000Z";
 
@@ -32,29 +33,30 @@ Stop. File an approval request (action: *Spending* or *Subscription purchase*) w
     category: "policy",
     tags: ["approvals", "governance", "mandatory"],
     authorId: "ceo",
-    updatedAt: at,
-    body: `These actions **always** require the CEO's explicit approval in the Approval Center. Employees may prepare them; they never perform them.
+    updatedAt: "2026-11-02T09:00:00.000Z",
+    body: `Approvals have two levels. Employees may prepare any of these; they never perform them without the decision.
 
-1. Production deployment
-2. Production database modifications
-3. Publishing a public release
-4. Sending proposals to clients
-5. Sending external communications on behalf of the company
-6. Accepting contractual commitments
-7. Spending money
-8. Purchasing subscriptions
-9. Changing billing settings
-10. Accessing sensitive client information
-11. Deleting important company data
-12. Making irreversible changes
+## Decided by the COO (Charlotte Ashworth, EMP-001) — delegated by the CEO
+- Merges to main
+- Production and preview deployments
+- Public releases of the team's work (apps, previews, designs)
+- Access to real project or client data needed for the work
+- Production database changes
+- Repository-level irreversible changes
 
-Every request records: action, requester, reason, impact, risk, supporting files, decision, and timestamp.
+## Decided by the CEO — always brought by the COO, marked urgent when blocking
+- Spending money, purchasing subscriptions, changing billing
+- Contracts and commitments
+- Anything sent to a client on the company's behalf (proposals, communications)
+- Deleting important company data
+
+Every request records: action, requester, reason, impact, risk, supporting files, decision, who decided, and when.
 
 **How it is enforced in the platform**
-- A task flagged with a protected action cannot be completed until a matching approval is approved.
-- A project cannot be marked *Delivered* without an approved release approval.
-- Only the CEO role can decide approvals.
-- Production deploys to GitHub Pages run through the \`github-pages\` environment; add the CEO as a required reviewer in the repository settings so GitHub itself enforces the gate.`,
+- A task with a protected action can't complete until a matching approval is approved.
+- The team's reports can file approval requests; only the COO's reports can decide them, and only COO-level ones. CEO-level requests can only be filed by the COO.
+- Only the CEO role decides CEO-level approvals in the Approval Center. The CEO can also decide any COO-level approval.
+- In \`agency-projects\`, merges and deployments run automatically once the COO's release decision is committed — no CEO click needed.`,
   },
   {
     id: "KB-003",
@@ -124,8 +126,8 @@ Notes
 | 5. Development | Frontend, Backend, Mobile engineers | Code, tests, implementation notes |
 | 6. Quality assurance | QA Manager, Manual QA, Automation QA | Test plan, results, defects, regression suite |
 | 7. Independent review | Independent Quality Reviewer | Findings and Go / Conditional / No-go |
-| 8. CEO approval | CEO | Decision recorded in the Approval Center |
-| 9. Delivery | Project Manager | Release notes, documentation, deliverables, archived decisions |
+| 8. Release decision | COO (Charlotte) | Approve/reject the merge and deployment, based on QA and the independent review |
+| 9. Delivery | COO + Project Manager | Live links, release notes, documentation; the COO hands the final output to the CEO |
 
 **Start standard workflow** on a project creates these tasks with their dependencies. A task becomes *Assigned* automatically when all of its inputs are completed. Approved outputs of dependency tasks are included in the next assignment packet as handoff context. Any reviewer can **Request changes**, which sends the work back to its owner.`,
   },
@@ -346,7 +348,7 @@ The result appears in the Execution Center for you to approve or send back.
 Execution Center → New assignment → *Claude chat* → *Copy chat prompt* → paste in the Claude app → paste the reply back into *Import the result*.
 
 ## What still needs you
-Approvals (store publishing, anything sent to a client, spending) and merging code into \`main\`. Store publishing needs paid developer accounts (Apple $99/yr, Google $25 once) — the team will ask first.`,
+Only CEO-level decisions, which Charlotte (COO) brings you — marked urgent when they block work: spending (e.g. Apple $99/yr, Google Play $25), contracts, anything sent to a client, and deleting company data. Merges, deployments, and releases are Charlotte's decision.`,
   },
   {
     id: "KB-017",
@@ -376,5 +378,48 @@ Mirror the company state to one private row per user in Supabase (free tier):
 - Free tier: 500 MB database (the company uses well under 1 MB). Projects pause after 1 week without activity; unpause from the Supabase dashboard.
 - After the CEO's first sign-in, turn off "Allow new users to sign up" in Supabase so no one else can create an account.
 - Schema: \`supabase/migrations/0001_company_state.sql\`.`,
+  },
+  {
+    id: "KB-019",
+    title: "Learning programme: playbooks and resources for every role",
+    category: "learning",
+    tags: ["learning", "playbooks", "best-practices"],
+    authorId: "EMP-001",
+    updatedAt: "2026-11-02T09:00:00.000Z",
+    body: `Every employee keeps learning their craft, what's new in the market, and the best practices of their role.
+
+## How it works
+- Each employee has a **living playbook** at \`playbooks/<slug>.md\` in \`agency-projects\`: current best practices, checklists, and "what's new" with dated sources. They read it before every assignment.
+- **Learning sessions** (\`/learn\`) research the resources below and recent developments, then update the playbooks and publish a dated learning note here (category *Learning*). A weekly scheduled session rotates through the team.
+- Lessons from real projects (review findings, bugs that escaped) are added to the playbook of the role that can prevent them next time.
+
+## Resources by role
+${EMPLOYEES.map((e) => `### ${e.name.en} — ${e.title.en}\nFocus: ${e.learning?.focus.join("; ") ?? "—"}\n${(e.learning?.resources ?? []).map((r) => `- [${r.label}](${r.url})`).join("\n")}`).join("\n\n")}`,
+  },
+  {
+    id: "KB-020",
+    title: "Chain of command and release process",
+    category: "policy",
+    tags: ["governance", "release", "coo"],
+    authorId: "ceo",
+    updatedAt: "2026-11-02T09:00:00.000Z",
+    body: `## One point of contact
+**Charlotte Ashworth (COO, EMP-001)** is the only employee who communicates with the CEO. The CEO tells Charlotte what they want; Charlotte makes the company deliver it and hands back the final output. She contacts the CEO only for CEO-level decisions (see *CEO approval policy*), marked **URGENT** when they block work, in the **Direct line** channel and in the Claude session.
+
+## Reporting lines
+- CEO → Charlotte (COO)
+- Charlotte → Oliver (Business Analyst), Sarah (Project Manager), Alexander (Design Architect), James (Tech Lead), Victoria (QA Manager), Eleanor (Independent Reviewer — outside the delivery chain)
+- Alexander → Henry (UI/UX) → Imogen (Brand), Edward (Content)
+- James → Thomas (Mobile), Emily (Frontend), William (Backend)
+- Victoria → Amelia (Manual QA), George (Automation QA)
+
+## Release process (agency-projects)
+1. The team finishes the work on branch \`project/<key>\`; Edward reviews all written content and Alexander all design.
+2. QA signs off and Eleanor issues Go / Go with conditions / No-go.
+3. Charlotte decides. On approval she commits \`projects/<key>/release.json\` with her decision and evidence.
+4. GitHub's **Release** workflow checks the decision, runs the tests and build, merges the branch into \`main\`, and deploys it to \`https://mohamad-ilyas.github.io/agency-projects/<key>/\`.
+5. Charlotte delivers the final output to the CEO: outcome, live links, what was verified, open risks.
+
+Rollback: revert the merge commit on \`main\`; the next Release run redeploys.`,
   },
 ];

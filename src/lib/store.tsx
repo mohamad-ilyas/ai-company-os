@@ -14,7 +14,8 @@ import { applyAgentReport } from "./execution/apply-report";
 import { formatDate, formatDateTime, makeT, pick, type Translate } from "./i18n";
 import type { ActorId, CompanyState, EmployeeId, L10n, Locale } from "./types";
 import { useToast } from "@/components/ui/toast";
-import { cloudConfigured, loadSync } from "./cloud/status";
+import { cloudConfigured, loadSync, writeMeta } from "./cloud/status";
+import { migrateState } from "./migrate";
 
 export const STORAGE_KEY = "aicos:state:v1";
 export const BACKUP_KEY = "aicos:state:backup";
@@ -103,7 +104,7 @@ export function replaceState(next: CompanyState, activityKey: "data_imported" | 
     }
   }
   const ctx: Ctx = { actor: "ceo", role: next.settings.role, now: new Date().toISOString() };
-  return setState(log(next, ctx, "data", activityKey, {}));
+  return setState(log(migrateState(next, ctx.now).state, ctx, "data", activityKey, {}));
 }
 
 export function restoreBackup(): boolean {
@@ -137,9 +138,15 @@ let recoveredOnLoad = false;
 function getClientSnapshot(): CompanyState | null {
   if (!current) {
     const { state, recovered } = load();
-    current = state;
+    const migrated = migrateState(state, new Date().toISOString());
+    current = migrated.state;
     recoveredOnLoad = recovered;
-    applyPrefs(state);
+    if (migrated.changed) {
+      persist(current);
+      // Make sure the upgraded company is uploaded to the cloud on the next sync.
+      if (cloudConfigured) writeMeta({ dirty: true });
+    }
+    applyPrefs(current);
   }
   return current;
 }
@@ -155,7 +162,11 @@ export function StoreProvider({ children, fallback }: { children: ReactNode; fal
     void loadSync().then(({ startCloud }) =>
       startCloud({
         get: () => current!,
-        applyRemote: (remote) => setState(keepDevicePrefs(remote), true),
+        applyRemote: (remote) => {
+          // A copy saved by an older dashboard is upgraded here, then uploaded again.
+          const migrated = migrateState(remote, new Date().toISOString());
+          setState(keepDevicePrefs(migrated.state), !migrated.changed);
+        },
         backup: (local) => {
           try {
             localStorage.setItem(BACKUP_KEY, JSON.stringify(local));

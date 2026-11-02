@@ -131,6 +131,7 @@ test("changes requested sends the task back and a revision can be created", asyn
 
 test("CEO approval unlocks the protected task and its dependents", async ({ page }) => {
   await open(page, "/approvals/");
+  await page.getByRole("tab", { name: /COO decides/ }).click();
   const card = page.getByTestId("approval-APR-001");
   await expect(card).toContainText("Public release");
   await page.getByTestId("approve-APR-001").click();
@@ -151,6 +152,7 @@ test("CEO approval unlocks the protected task and its dependents", async ({ page
 
 test("rejecting requires a note", async ({ page }) => {
   await open(page, "/approvals/");
+  await page.getByRole("tab", { name: /COO decides/ }).click();
   await page.getByTestId("reject-APR-001").click();
   await expect(page.getByTestId("confirm-ok")).toBeDisabled();
   await confirmDialog(page, "Not yet — buy the domain first.");
@@ -162,6 +164,7 @@ test("viewer and operator roles are restricted", async ({ page }) => {
   await open(page, "/settings/");
   await page.getByTestId("role-select").selectOption("operator");
   await open(page, "/approvals/");
+  await page.getByRole("tab", { name: /COO decides/ }).click();
   await expect(page.getByText("Only the CEO role can decide approvals.").first()).toBeVisible();
   await expect(page.getByTestId("approve-APR-001")).toHaveCount(0);
 
@@ -176,6 +179,7 @@ test("viewer and operator roles are restricted", async ({ page }) => {
   await open(page, "/settings/");
   await page.getByTestId("role-select").selectOption("ceo");
   await open(page, "/approvals/");
+  await page.getByRole("tab", { name: /COO decides/ }).click();
   await expect(page.getByTestId("approve-APR-001")).toBeVisible();
 });
 

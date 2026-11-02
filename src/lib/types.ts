@@ -55,6 +55,8 @@ export interface Employee {
   /** The employee's individual system instruction, used verbatim as the Claude Code subagent prompt. */
   systemInstructions: string;
   availability: Availability;
+  /** Continuous learning: focus areas and curated resources (see /learn and playbooks/<slug>.md). */
+  learning?: { focus: string[]; resources: LinkRef[] };
 }
 
 export const PROJECT_STATUSES = [
@@ -276,9 +278,15 @@ export interface Approval {
   createdAt: string;
   decidedAt: string | null;
   sample: boolean;
+  /** Marked urgent by the COO when a CEO-reserved decision is blocking work. */
+  urgent?: boolean;
+  /** Stable key chosen by the team, so a later report can decide this approval. */
+  extKey?: string | null;
+  /** Who decided it (the CEO, or the COO within delegated authority). */
+  decidedBy?: ActorId | null;
 }
 
-export const CHANNEL_KINDS = ["announcement", "department", "project", "task", "decision", "meeting"] as const;
+export const CHANNEL_KINDS = ["announcement", "direct", "department", "project", "task", "decision", "meeting"] as const;
 export type ChannelKind = (typeof CHANNEL_KINDS)[number];
 
 export interface Message {
@@ -330,6 +338,7 @@ export const KNOWLEDGE_CATEGORIES = [
   "sop",
   "decision",
   "prompt",
+  "learning",
 ] as const;
 export type KnowledgeCategory = (typeof KNOWLEDGE_CATEGORIES)[number];
 
@@ -341,6 +350,8 @@ export interface KnowledgeArticle {
   tags: string[];
   authorId: ActorId;
   updatedAt: string;
+  /** Stable key chosen by the team (e.g. playbook/frontend-engineer) so reports can update it. */
+  extKey?: string | null;
 }
 
 export const ACTIVITY_TYPES = [
@@ -403,6 +414,8 @@ export interface Settings {
 export interface CompanyState {
   schema: "aicos.state/v1";
   revision: number;
+  /** Version of the built-in workforce last merged into this state (see migrate.ts). */
+  workforceVersion?: number;
   counters: Record<string, number>;
   settings: Settings;
   departments: Department[];

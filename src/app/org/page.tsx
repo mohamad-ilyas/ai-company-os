@@ -56,12 +56,23 @@ export default function OrgChartPage() {
           <p className="text-xs text-fg-2">{t("org.founder")}</p>
         </div>
         <div className="h-6 w-px bg-border-strong" aria-hidden />
+        {(() => {
+          const coo = s.employees.find((e) => e.id === "EMP-001");
+          return coo ? (
+            <div className="w-full max-w-sm">
+              <PersonNode emp={coo} lead note={t("org.singleContact")} />
+            </div>
+          ) : null;
+        })()}
+        <div className="h-6 w-px bg-border-strong" aria-hidden />
       </div>
 
       <div className="relative grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div className="pointer-events-none absolute inset-x-[12%] -top-px hidden h-px bg-border-strong xl:block" aria-hidden />
         {s.departments.map((dept) => {
           const lead = byId(dept.managerId);
+          // The COO is shown once, under the CEO; her department lists only its members.
+          const leadShownAbove = lead.id === "EMP-001";
           // Direct reports of the lead inside this department, plus anyone in the department who reports elsewhere.
           const team = s.employees.filter((e) => e.departmentId === dept.id && e.id !== lead.id);
           const underLead = team.filter((e) => e.reportsTo === lead.id);
@@ -74,8 +85,8 @@ export default function OrgChartPage() {
                   <span className="size-2.5 rounded-sm" style={{ background: SLOT_COLOR[dept.colorSlot] }} aria-hidden />
                   <h2 className="text-[13px] font-semibold uppercase tracking-wide text-fg-2">{l(dept.name)}</h2>
                 </Link>
-                <PersonNode emp={lead} lead />
-                <ul className="mt-2 space-y-2 border-s border-border-strong ps-3 ms-4">
+                {!leadShownAbove && <PersonNode emp={lead} lead />}
+                <ul className={leadShownAbove ? "space-y-2" : "mt-2 space-y-2 border-s border-border-strong ps-3 ms-4"}>
                   {underLead.map((e) => (
                     <li key={e.id} className="relative">
                       <span className="absolute -start-3 top-6 h-px w-3 bg-border-strong" aria-hidden />
@@ -95,7 +106,7 @@ export default function OrgChartPage() {
                 </ul>
                 {others.map((e) => (
                   <div key={e.id} className="mt-3 border-t border-dashed border-border-strong pt-3">
-                    <PersonNode emp={e} note={e.reportsTo === "ceo" ? t("org.dotted") : undefined} />
+                    <PersonNode emp={e} note={e.id === "EMP-013" ? t("org.dotted") : undefined} />
                   </div>
                 ))}
               </div>

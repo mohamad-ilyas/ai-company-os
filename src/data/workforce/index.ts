@@ -1,8 +1,12 @@
 import type { Department, Employee } from "../../lib/types";
 import { coo, businessAnalyst, projectManager } from "./executive";
-import { graphicDesigner, uiuxDesigner } from "./design";
+import { contentCreator, designArchitect, graphicDesigner, uiuxDesigner } from "./design";
+import { LEARNING } from "./learning";
 import { techLead, mobileEngineer, frontendEngineer, backendEngineer } from "./engineering";
 import { qaManager, manualQa, qaAutomation, qualityReviewer } from "./qa";
+
+/** Bump when profiles, reporting lines, or instructions change, so saved companies pick them up. */
+export const WORKFORCE_VERSION = 2;
 
 export const EMPLOYEES: Employee[] = [
   coo,
@@ -18,7 +22,9 @@ export const EMPLOYEES: Employee[] = [
   manualQa,
   qaAutomation,
   qualityReviewer,
-];
+  contentCreator,
+  designArchitect,
+].map((e) => ({ ...e, learning: LEARNING[e.slug] }));
 
 export const DEPARTMENTS: Department[] = [
   {
@@ -39,8 +45,8 @@ export const DEPARTMENTS: Department[] = [
       en: "Brand identity, product UX, and the design system behind every interface.",
       ar: "الهوية البصرية، وتجربة المستخدم، ونظام التصميم وراء كل واجهة.",
     },
-    managerId: "EMP-005",
-    responsibilities: ["Brand identity and marketing design", "UX research and information architecture", "UI design system and specifications", "Design QA of implemented interfaces"],
+    managerId: "EMP-015",
+    responsibilities: ["Design architecture and review of every project's design", "2D, 3D and motion (4D) experience design", "Brand identity and marketing design", "UX research and information architecture", "UI design system and specifications", "Design QA of implemented interfaces", "Content creation and review of everything the team writes"],
     colorSlot: 2,
   },
   {

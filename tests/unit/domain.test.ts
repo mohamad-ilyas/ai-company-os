@@ -30,11 +30,11 @@ function newProject(s: CompanyState) {
 }
 
 describe("seed", () => {
-  it("has 13 distinct employees with distinct instructions and valid reporting lines", () => {
+  it("has 15 distinct employees with distinct instructions and valid reporting lines", () => {
     const s = createSeed();
-    expect(s.employees).toHaveLength(13);
-    expect(new Set(s.employees.map((e) => e.id)).size).toBe(13);
-    expect(new Set(s.employees.map((e) => e.systemInstructions)).size).toBe(13);
+    expect(s.employees).toHaveLength(15);
+    expect(new Set(s.employees.map((e) => e.id)).size).toBe(15);
+    expect(new Set(s.employees.map((e) => e.systemInstructions)).size).toBe(15);
     for (const e of s.employees) {
       expect(e.reportsTo === "ceo" || s.employees.some((x) => x.id === e.reportsTo)).toBe(true);
       e.collaborators.forEach((c) => expect(s.employees.some((x) => x.id === c)).toBe(true));

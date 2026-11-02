@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DELIVERABLE_TYPES, PRIORITIES, PROTECTED_ACTIONS, TASK_STATUSES, WORKFLOW_STAGES } from "../types";
+import { DELIVERABLE_TYPES, KNOWLEDGE_CATEGORIES, PRIORITIES, PROTECTED_ACTIONS, TASK_STATUSES, WORKFLOW_STAGES } from "../types";
 import { executionResultSchema } from "./result-schema";
 
 /**
@@ -113,7 +113,8 @@ const executionResult = z.object({
 
 const messagePost = z.object({
   type: z.literal("message.post"),
-  kind: z.enum(["project", "department", "decision", "meeting"]),
+  /** "direct" is the COO's line to the CEO (author must be EMP-001). */
+  kind: z.enum(["project", "department", "decision", "meeting", "direct"]),
   projectKey: key.optional(),
   departmentId: z.enum(["executive", "design", "engineering", "qa"]).optional(),
   authorId: empId,
@@ -122,6 +123,10 @@ const messagePost = z.object({
 
 const approvalRequest = z.object({
   type: z.literal("approval.request"),
+  /** Optional stable key so a later report can decide it (approval.decide). */
+  key: key.optional(),
+  /** Only the COO marks CEO decisions urgent. */
+  urgent: z.boolean().optional(),
   action: z.enum(PROTECTED_ACTIONS),
   title: text(300).min(1),
   requestedBy: empId,
@@ -145,6 +150,27 @@ const deliverableRecord = z.object({
   version: text(50).default("1"),
 });
 
+/** The COO's decision on a COO-level approval (identified by its key, or the pending approval on a task). */
+const approvalDecide = z.object({
+  type: z.literal("approval.decide"),
+  by: z.literal("EMP-001"),
+  approvalKey: key.optional(),
+  taskKey: key.optional(),
+  decision: z.enum(["approved", "rejected"]),
+  note: text(5000).default(""),
+});
+
+/** Create or update a knowledge-base article (playbooks, learning notes, standards). */
+const knowledgeUpsert = z.object({
+  type: z.literal("knowledge.upsert"),
+  key,
+  title: text(300).min(1),
+  category: z.enum(KNOWLEDGE_CATEGORIES),
+  body: text(100_000).min(1),
+  tags: z.array(text(60)).max(20).default([]),
+  authorId: empId,
+});
+
 export const reportActionSchema = z.discriminatedUnion("type", [
   projectUpsert,
   taskUpsert,
@@ -153,6 +179,8 @@ export const reportActionSchema = z.discriminatedUnion("type", [
   executionResult,
   messagePost,
   approvalRequest,
+  approvalDecide,
+  knowledgeUpsert,
   deliverableRecord,
 ]);
 

@@ -1,5 +1,5 @@
 import type { ActivityEvent, CompanyState, Execution, HistoryEntry, Message, Project, Task } from "../lib/types";
-import { DEPARTMENTS, EMPLOYEES } from "./workforce";
+import { DEPARTMENTS, EMPLOYEES, WORKFORCE_VERSION } from "./workforce";
 import { KNOWLEDGE } from "./knowledge";
 
 // The seed has two kinds of records:
@@ -294,6 +294,7 @@ export function createSeed(): CompanyState {
   const state: CompanyState = {
     schema: "aicos.state/v1",
     revision: 0,
+    workforceVersion: WORKFORCE_VERSION,
     counters: { PRJ: 2, TSK: 14, EXE: 1, APR: 2, MSG: 5, DLV: 2, KB: KNOWLEDGE.length, ACT: 6, CMT: 1, MS: 5, RSK: 3 },
     settings: {
       companyName: "AI Company OS",

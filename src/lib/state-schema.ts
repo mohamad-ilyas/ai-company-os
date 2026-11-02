@@ -53,6 +53,7 @@ const employee = z.object({
   outputFormat: text,
   systemInstructions: z.string().min(1).max(20_000),
   availability: z.enum(["available", "busy", "unavailable"]),
+  learning: z.object({ focus: z.array(z.string()), resources: z.array(link) }).optional(),
 });
 
 const project = z.object({
@@ -150,11 +151,15 @@ const approval = z.object({
   createdAt: z.string(),
   decidedAt: z.string().nullable(),
   sample: z.boolean(),
+  urgent: z.boolean().optional(),
+  extKey: z.string().max(100).nullable().optional(),
+  decidedBy: actor.nullable().optional(),
 });
 
 export const companyStateSchema = z.object({
   schema: z.literal("aicos.state/v1"),
   revision: z.number().int().nonnegative(),
+  workforceVersion: z.number().int().nonnegative().optional(),
   counters: z.record(z.string(), z.number().int().nonnegative()),
   settings: z.object({
     companyName: z.string().max(200),
@@ -214,6 +219,7 @@ export const companyStateSchema = z.object({
       tags: z.array(z.string()),
       authorId: actor,
       updatedAt: z.string(),
+      extKey: z.string().max(100).nullable().optional(),
     }),
   ),
   activity: z.array(

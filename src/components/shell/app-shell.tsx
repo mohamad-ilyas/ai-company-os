@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
 import { updateSettings } from "@/lib/domain";
+import { APPROVAL_LEVEL } from "@/lib/workflow";
 import type { TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/primitives";
@@ -39,7 +40,7 @@ type NavItem = { href: string; key: TKey; icon: typeof Users; badge?: number; ba
 function useNav(): { group: TKey; items: NavItem[] }[] {
   const s = useCompany();
   const n = s.settings.notifications;
-  const pendingApprovals = s.approvals.filter((a) => a.status === "pending").length;
+  const pendingApprovals = s.approvals.filter((a) => a.status === "pending" && APPROVAL_LEVEL[a.action] === "ceo").length;
   const blocked = s.tasks.filter((t) => t.status === "blocked").length;
   const reviews = s.executions.filter((e) => e.reviewStatus === "pending").length;
   return [
