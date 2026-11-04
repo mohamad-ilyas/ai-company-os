@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ArrowLeft, Lock, Pencil, PlayCircle, ShieldCheck, Trash2 } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
+import { SendToTeam } from "@/components/send-to-team";
 import { Badge, BulletList, Button, Card, CardBody, CardHeader, EmptyState, KeyValue, Notice, Textarea } from "@/components/ui/primitives";
 import { useConfirm } from "@/components/ui/dialog";
 import { ActorChip, ExecutionStatusBadge, LinkButton, PriorityBadge, RefLink, ReviewBadge, SampleBadge, TaskStatusBadge, useQueryParam } from "@/components/common";
@@ -72,7 +73,8 @@ function TaskView() {
         </div>
         {writable && (
           <div className="flex flex-wrap gap-2">
-            <LinkButton href={routes.executionNew({ task: task.id, employee: task.assigneeId ?? undefined })} variant="primary" testId="run-with-ai">
+            {task.status !== "completed" && task.status !== "cancelled" && <SendToTeam kind="task" task={task} />}
+            <LinkButton href={routes.executionNew({ task: task.id, employee: task.assigneeId ?? undefined })} testId="run-with-ai">
               <PlayCircle className="size-4" />
               {t("tasks.assignToAi")}
             </LinkButton>

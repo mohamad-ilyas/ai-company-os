@@ -33,7 +33,7 @@ import type { TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/primitives";
 import { CloudStatusBadge } from "@/components/cloud-section";
-import { cloudConfigured } from "@/lib/cloud/status";
+import { cloudConfigured, useCloud } from "@/lib/cloud/status";
 
 type NavItem = { href: string; key: TKey; icon: typeof Users; badge?: number; badgeTone?: "warning" | "danger" | "info" };
 
@@ -164,6 +164,7 @@ function Topbar({ onMenu, menuRef }: { onMenu: () => void; menuRef: RefObject<HT
   const { t, locale } = useI18n();
   const run = useRun();
   const attention = useAttention();
+  const cloud = useCloud();
   const n = s.settings.notifications;
   const waiting = (n.approvals ? attention.approvals : 0) + (n.blockedTasks ? attention.blocked : 0) + (n.reviews ? attention.reviews : 0);
   const theme = s.settings.theme;
@@ -187,6 +188,7 @@ function Topbar({ onMenu, menuRef }: { onMenu: () => void; menuRef: RefObject<HT
         )}
       </button>
       <div className="flex-1" />
+      {cloudConfigured && cloud.email && <span className="min-w-0 max-w-[8rem] truncate lg:hidden"><CloudStatusBadge /></span>}
       <Badge tone={s.settings.role === "ceo" ? "accent" : "warning"} title={t("app.role")}>
         {t(`role.${s.settings.role}`)}
       </Badge>

@@ -103,10 +103,38 @@ async function rpc(name: string, args: Record<string, unknown> = {}): Promise<Re
 }
 
 let authCallback: ((event: string, session: unknown) => void) | null = null;
+/** The fake Realtime channel: the test pushes signal changes through `live.emit`. */
+const live = {
+  handler: null as null | ((payload: unknown) => void),
+  filter: "",
+  subscribed: false,
+  emit(payload: unknown) {
+    this.handler?.(payload);
+  },
+};
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     from: query,
     rpc,
+    channel: () => {
+      const ch = {
+        on: (_type: string, opts: { filter: string }, cb: (payload: unknown) => void) => {
+          live.filter = opts.filter;
+          live.handler = cb;
+          return ch;
+        },
+        subscribe: (cb: (status: string) => void) => {
+          live.subscribed = true;
+          cb("SUBSCRIBED");
+          return ch;
+        },
+      };
+      return ch;
+    },
+    removeChannel: async () => {
+      live.subscribed = false;
+      live.handler = null;
+    },
     auth: {
       onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
         authCallback = cb;
@@ -193,6 +221,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_KEY", "sb_publishable_test");
   stubBrowser();
   Object.assign(server, { v5: true, row: null, reports: [], saves: [], beforeSave: null, offline: false });
+  Object.assign(live, { handler: null, filter: "", subscribed: false });
 });
 
 afterEach(() => {
@@ -372,5 +401,46 @@ describe("AI team report inbox", () => {
     const { b } = await start();
     expect(b.reportsSeen).toHaveLength(2);
     expect(server.reports.every((r) => r.outcome === "applied")).toBe(true);
+  });
+});
+
+describe("live updates (Realtime signals)", () => {
+  it("subscribes to this account's signal and syncs at once when another device saves", async () => {
+    server.row = { state: createSeed(), revision: 1 };
+    setMeta({ owner: UID, base: 1, dirty: false });
+    const { b, status } = await start();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(live.subscribed).toBe(true);
+    expect(live.filter).toBe(`owner=eq.${UID}`);
+    expect(status.getCloudInfo().live).toBe(true);
+    // Another device saves revision 2.
+    server.row = { state: { ...createSeed(), settings: { ...createSeed().settings, tagline: "from the phone" } }, revision: 2 };
+    live.emit({ eventType: "UPDATE", new: { state_revision: 2, report_at: null }, old: { state_revision: 1, report_at: null } });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(b.applied.at(-1)?.settings.tagline).toBe("from the phone");
+    expect(meta()).toMatchObject({ base: 2 });
+  });
+
+  it("a new team report is applied within a moment of arriving", async () => {
+    server.row = { state: createSeed(), revision: 1 };
+    setMeta({ owner: UID, base: 1, dirty: false });
+    const { b } = await start();
+    await vi.advanceTimersByTimeAsync(1);
+    server.reports.push(report(77));
+    live.emit({ eventType: "UPDATE", new: { state_revision: 1, report_at: "2026-11-04T10:00:00Z" }, old: { state_revision: 1, report_at: null } });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(b.reportsSeen).toHaveLength(1);
+    expect(server.reports[0].outcome).toBe("applied");
+  });
+
+  it("its own save echoing back doesn't trigger another sync", async () => {
+    server.row = { state: createSeed(), revision: 1 };
+    setMeta({ owner: UID, base: 1, dirty: false });
+    await start();
+    await vi.advanceTimersByTimeAsync(1);
+    const reads = server.saves.length;
+    live.emit({ eventType: "UPDATE", new: { state_revision: 1, report_at: null }, old: { state_revision: 0, report_at: null } });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(server.saves.length).toBe(reads);
   });
 });

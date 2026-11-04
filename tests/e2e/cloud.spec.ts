@@ -129,3 +129,72 @@ test("signed-in device with older local data: the newer cloud copy wins and the 
   await expect(page.getByTestId("restore-backup")).toHaveCount(1);
   expect(cloud.saves).toEqual([]);
 });
+
+/**
+ * A minimal Supabase Realtime server (Phoenix protocol, JSON v1 objects or v2 arrays): acknowledges joins and
+ * heartbeats, and lets the test push a postgres_changes event for the sync_signals subscription.
+ */
+async function fakeRealtime(page: Page) {
+  let push: ((record: object) => void) | null = null;
+  let joined = false;
+  await page.routeWebSocket(/realtime\/v1\/websocket/, (ws) => {
+    let v2 = false;
+    const send = (joinRef: string | null, ref: string | null, topic: string, event: string, payload: unknown) =>
+      ws.send(JSON.stringify(v2 ? [joinRef, ref, topic, event, payload] : { topic, event, payload, ref, join_ref: joinRef }));
+    ws.onMessage((raw) => {
+      const msg = JSON.parse(String(raw));
+      v2 = Array.isArray(msg);
+      const [joinRef, ref, topic, event, payload] = v2 ? msg : [msg.join_ref, msg.ref, msg.topic, msg.event, msg.payload];
+      if (event === "phx_join") {
+        const changes = (payload?.config?.postgres_changes ?? []).map((c: object, i: number) => ({ ...c, id: 1000 + i }));
+        send(joinRef, ref, topic, "phx_reply", { status: "ok", response: { postgres_changes: changes } });
+        joined = true;
+        push = (record) =>
+          send(joinRef, null, topic, "postgres_changes", {
+            ids: changes.map((c: { id: number }) => c.id),
+            data: {
+              type: "UPDATE", schema: "public", table: "sync_signals", commit_timestamp: new Date().toISOString(), errors: null,
+              columns: [{ name: "owner", type: "uuid" }, { name: "state_revision", type: "int8" }, { name: "report_at", type: "timestamptz" }, { name: "updated_at", type: "timestamptz" }],
+              record, old_record: { ...record, state_revision: 0, report_at: null },
+            },
+          });
+      } else {
+        send(joinRef, ref, topic, "phx_reply", { status: "ok", response: {} }); // heartbeats, access_token, leave
+      }
+    });
+  });
+  return { push: (record: object) => push?.(record), joined: () => joined };
+}
+
+test("live: another device's change appears without a reload", async ({ page }) => {
+  const errors = watchErrors(page);
+  const cloud: Cloud = { row: null, saves: [], patches: [], reports: [] };
+  const rt = await fakeRealtime(page);
+  await stubSignedInCloud(page, cloud);
+  await open(page, "/");
+  await expect.poll(() => cloud.saves.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(rt.joined).toBe(true);
+  await expect(page.getByText("Live", { exact: true }).first()).toBeVisible();
+  // The phone saves a new founder name; the cloud tells this tab.
+  const state = cloud.row!.state as { settings: Record<string, unknown> };
+  cloud.row = { state: { ...state, settings: { ...state.settings, founderName: "Changed On Phone" } }, revision: cloud.row!.revision + 1 };
+  rt.push({ owner: UID, state_revision: cloud.row.revision, report_at: null, updated_at: new Date().toISOString() });
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome back, Changed", { timeout: 5_000 });
+  expect(errors).toEqual([]);
+});
+
+test("live: a team report sent from Claude Code shows up within seconds", async ({ page }) => {
+  const cloud: Cloud = { row: null, saves: [], patches: [], reports: [] };
+  const rt = await fakeRealtime(page);
+  await stubSignedInCloud(page, cloud);
+  await open(page, "/projects/");
+  await expect.poll(() => cloud.saves.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(rt.joined).toBe(true);
+  cloud.reports.push({
+    id: 900, claimed: false,
+    payload: { schema: "aicos.report/v1", reportId: "live-e2e-0001", sentAt: new Date().toISOString(), source: "claude_code", summary: "x",
+      actions: [{ type: "project.upsert", key: "live-app", name: "Live app from Claude Code", client: "C" }] },
+  });
+  rt.push({ owner: UID, state_revision: cloud.row!.revision, report_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  await expect(page.getByTestId("project-list")).toContainText("Live app from Claude Code", { timeout: 5_000 });
+});

@@ -8,10 +8,22 @@ import { postMessage } from "@/lib/domain";
 
 const REPO = "mohamad-ilyas/agency-projects";
 
+/** Claude Code on the web, pre-filled with a prompt and the projects repository. */
+export function claudeCodeUrl(prompt: string): string {
+  return `https://claude.ai/code?prompt=${encodeURIComponent(prompt.trim())}&repositories=${encodeURIComponent(REPO)}`;
+}
+
 /** Claude Code on the web, pre-filled with /ask-coo and the projects repository. */
 export function askCooUrl(message: string): string {
-  const prompt = `/ask-coo ${message.trim()}`;
-  return `https://claude.ai/code?prompt=${encodeURIComponent(prompt)}&repositories=${encodeURIComponent(REPO)}`;
+  return claudeCodeUrl(`/ask-coo ${message.trim()}`);
+}
+
+/** Opens a new tab without giving it a handle on this one. Returns false if the browser blocked it. */
+export function openTab(url: string): boolean {
+  // Not the "noopener" feature: with it, window.open always returns null and every send would look blocked.
+  const win = window.open(url, "_blank");
+  if (win) win.opener = null;
+  return !!win;
 }
 
 /**
@@ -33,9 +45,7 @@ export function AskCoo({ compact = false }: { compact?: boolean }) {
     if (!message) return;
     const url = askCooUrl(message);
     // Open first (synchronously, inside the click) so the browser allows the new tab.
-    // Not the "noopener" feature: with it, window.open always returns null and every send would look blocked.
-    const win = window.open(url, "_blank");
-    if (win) win.opener = null;
+    const win = openTab(url);
     run((st, ctx) => postMessage(st, ctx, { kind: "direct", refId: null, body: message, authorId: "ceo" }));
     setText("");
     setOpened(!!win);

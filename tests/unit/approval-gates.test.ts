@@ -145,6 +145,21 @@ describe("approval gates", () => {
     expect(() => setTaskStatus(s, op(LATER), task(s, "pre/t").id, "completed")).toThrow(/approval_required/);
   });
 
+  it("reports can update records the CEO created in the dashboard, by their ids", () => {
+    let s = createSeed();
+    const t0 = s.tasks.find((t) => t.status === "assigned" && !t.protectedAction && !t.sample)!;
+    const before = s.tasks.length;
+    s = run(s, [
+      { type: "task.status", taskKey: t0.id.toLowerCase(), status: "in_progress", by: t0.assigneeId },
+      { type: "message.post", kind: "project", projectKey: t0.projectId.toLowerCase(), authorId: "EMP-003", body: "Started" },
+    ]).state;
+    expect(s.tasks).toHaveLength(before);
+    expect(s.tasks.find((t) => t.id === t0.id)!.status).toBe("in_progress");
+    const out = run(s, [{ type: "task.upsert", key: "tsk-9999", projectKey: "prj-001", title: "Ghost" }]);
+    expect(out.warnings.join(" ")).toMatch(/not_found/);
+    expect(out.state.tasks).toHaveLength(before);
+  });
+
   it("upgrading links projects already waiting on a release to their request", () => {
     let s = run(createSeed(), [
       { type: "project.upsert", key: "old", name: "Old", client: "Client", status: "review" },

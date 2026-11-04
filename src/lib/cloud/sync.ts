@@ -4,11 +4,11 @@
 // localStorage; this module mirrors the state to one private row per user and
 // pulls changes made on other devices. Loaded only when cloud sync is configured.
 
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type RealtimeChannel, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import { parseCompanyState } from "../state-schema";
 import type { CompanyState } from "../types";
 import { decide } from "./reconcile";
-import { SUPABASE_KEY, SUPABASE_URL, readMeta, setCloudInfo, writeMeta } from "./status";
+import { SUPABASE_KEY, SUPABASE_URL, getCloudInfo, readMeta, setCloudInfo, writeMeta } from "./status";
 
 export interface StoreBridge {
   get: () => CompanyState;
@@ -47,7 +47,10 @@ export interface InboxReport {
 }
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const POLL_MS = 60_000;
+/** Safety net while Realtime is connected; the signal normally arrives within seconds. */
+const POLL_LIVE_MS = 120_000;
+/** Without Realtime (database without migration 0006, or the connection dropped). */
+const POLL_MS = 20_000;
 const OUTCOMES_KEY = "aicos:cloud:outcomes";
 const CLAIM_LIMIT = 20;
 const PUSH_DELAY_MS = 800;
@@ -58,6 +61,8 @@ let session: Session | null = null;
 let busy = false;
 let again = false;
 let pushTimer: ReturnType<typeof setTimeout> | undefined;
+let channel: RealtimeChannel | null = null;
+let lastPoll = 0;
 /** The database has migration 0005 (outcomes saved with the state, server-side claims). Detected on first use. */
 let serverV5: boolean | null = null;
 
@@ -286,6 +291,39 @@ async function checkRemote() {
   setCloudInfo({ status: "synced", lastSyncedAt: new Date().toISOString(), error: null });
 }
 
+/**
+ * Live updates: one tiny row per account (sync_signals, migration 0006) changes whenever the company is
+ * saved by any device or the AI team delivers a report. Hearing it, this device syncs at once.
+ */
+function subscribeLive(uid: string) {
+  if (channel) return;
+  channel = db()
+    .channel(`aicos-signals-${uid}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "sync_signals", filter: `owner=eq.${uid}` }, (payload) => {
+      const now = payload.new as { state_revision?: number; report_at?: string | null };
+      const before = payload.old as { report_at?: string | null } | undefined;
+      // Our own save echoing back needs nothing; another device's save or a new team report syncs now.
+      const ownEcho = Number(now.state_revision) === readMeta().base && before?.report_at === now.report_at;
+      if (ownEcho) return;
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => void reconcile(), 250);
+    })
+    .subscribe((status) => {
+      const live = status === "SUBSCRIBED";
+      setCloudInfo({ live });
+      // Reconnected: catch up on anything missed while the connection was down.
+      if (live) void checkRemote();
+    });
+}
+
+async function unsubscribeLive() {
+  if (!channel) return;
+  const c = channel;
+  channel = null;
+  setCloudInfo({ live: false });
+  await db().removeChannel(c);
+}
+
 let started = false;
 
 export function startCloud(b: StoreBridge) {
@@ -303,15 +341,26 @@ export function startCloud(b: StoreBridge) {
     if (s) {
       setCloudInfo({ email: s.user.email ?? null });
       // Supabase advises against awaiting its own calls inside this callback.
-      setTimeout(() => void reconcile(), 0);
+      setTimeout(() => {
+        void reconcile();
+        subscribeLive(s.user.id);
+      }, 0);
     } else {
       setCloudInfo({ status: "signed_out", email: null });
+      setTimeout(() => void unsubscribeLive(), 0);
     }
   });
 
   document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && void checkRemote());
   window.addEventListener("online", () => void reconcile());
-  setInterval(() => document.visibilityState === "visible" && void checkRemote(), POLL_MS);
+  // Polling only as a fallback: every 20 s without Realtime, every 2 min with it.
+  setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    const every = getCloudInfo().live ? POLL_LIVE_MS : POLL_MS;
+    if (Date.now() - lastPoll < every - 1000) return;
+    lastPoll = Date.now();
+    void checkRemote();
+  }, 5_000);
 }
 
 export async function sendSignInLink(email: string): Promise<{ ok: boolean; error?: string }> {
@@ -348,6 +397,7 @@ export async function syncNow() {
 }
 
 export async function signOut() {
+  await unsubscribeLive();
   await db().auth.signOut();
   writeMeta({ owner: null, base: 0, dirty: false });
   writeOutcomes([]);

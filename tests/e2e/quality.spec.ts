@@ -42,6 +42,32 @@ test("importing the same team report twice applies it once", async ({ page }) =>
   await expect(page.getByText("Dup work")).toHaveCount(1);
 });
 
+test("Send to the team: opens Claude Code with the task, its ids, and records it on the task", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __opened: string[] }).__opened = [];
+    window.open = ((url: string) => {
+      (window as unknown as { __opened: string[] }).__opened.push(url);
+      return {} as Window;
+    }) as typeof window.open;
+  });
+  await open(page, "/tasks/view/?id=TSK-0007");
+  await page.getByTestId("send-to-team").click();
+  const [url] = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened);
+  const u = new URL(url);
+  expect(u.origin + u.pathname).toBe("https://claude.ai/code");
+  expect(u.searchParams.get("repositories")).toBe("mohamad-ilyas/agency-projects");
+  const prompt = u.searchParams.get("prompt")!;
+  expect(prompt).toMatch(/^\/task /);
+  expect(prompt).toContain("TSK-0007");
+  expect(prompt).toContain('taskKey "tsk-0007"');
+  await expect(page.getByText("Sent to the AI team in Claude Code")).toBeVisible();
+
+  await open(page, "/projects/view/?id=PRJ-001");
+  await page.getByTestId("send-to-team").click();
+  const opened = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened);
+  expect(new URL(opened[0]).searchParams.get("prompt")).toMatch(/^\/(new|continue)-project /);
+});
+
 test("viewers can't import team reports", async ({ page }) => {
   await open(page, "/settings/");
   await page.getByTestId("role-select").selectOption("viewer");

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ArrowLeft, GitBranch, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
+import { SendToTeam } from "@/components/send-to-team";
 import { Badge, BulletList, Button, Card, CardBody, CardHeader, EmptyState, Field, Input, KeyValue, Notice, Select, Textarea, tableClass } from "@/components/ui/primitives";
 import { Dialog, useConfirm } from "@/components/ui/dialog";
 import { Tabs } from "@/components/ui/tabs";
@@ -112,6 +113,7 @@ function ProjectView() {
         </div>
         {writable && (
           <div className="flex flex-wrap items-center gap-2">
+            {p.status !== "delivered" && p.status !== "cancelled" && <SendToTeam kind="project" project={p} />}
             {nextStatuses.length > 0 && (
               <Select
                 aria-label={t("projects.moveTo")}

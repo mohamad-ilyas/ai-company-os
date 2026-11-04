@@ -851,6 +851,8 @@ export const en = {
     errorStorageFull: "This browser's storage is full, so the latest changes weren't saved here — and weren't uploaded either. Export your data, then free space (Settings → Data → delete old backups).",
     errorBackup: "A newer cloud copy is waiting, but no backup of this device's data could be stored first, so nothing was replaced. Export your data, free some space, then Sync now.",
     requestFailed: "The cloud request failed. Check your connection and try again. Details: {detail}",
+    live: "Live",
+    liveHint: "Connected in real time: changes from your other devices and the AI team appear within seconds.",
   },
   agent: {
     title: "AI team channel",
@@ -887,6 +889,11 @@ export const en = {
     conflict: "Before a sync conflict",
     pull: "Before the first cloud download",
     legacy: "Older backup",
+  },
+  team: {
+    send: "Send to the team",
+    sendHint: "Opens Claude Code with this request ready for the team. Press send there; their progress appears here live.",
+    sentNote: "Sent to the AI team in Claude Code. Progress appears here as they report.",
   },
 } as const;
 

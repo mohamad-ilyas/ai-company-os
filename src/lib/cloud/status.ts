@@ -17,9 +17,11 @@ export interface CloudInfo {
   email: string | null;
   lastSyncedAt: string | null;
   error: string | null;
+  /** Connected to Realtime: changes from other devices and the AI team arrive within seconds. */
+  live: boolean;
 }
 
-let info: CloudInfo = { status: cloudConfigured ? "signed_out" : "disabled", email: null, lastSyncedAt: null, error: null };
+let info: CloudInfo = { status: cloudConfigured ? "signed_out" : "disabled", email: null, lastSyncedAt: null, error: null, live: false };
 const listeners = new Set<() => void>();
 
 export function setCloudInfo(patch: Partial<CloudInfo>) {

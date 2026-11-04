@@ -118,7 +118,11 @@ reload while offline, still needs the network — there is no service worker).
 - `reconcile.ts` (pure, unit-tested) decides push / pull / conflict from the
   device's last-seen revision and whether it has unsent changes. Conflicts keep
   the cloud copy and save the device's copy as a restorable backup.
-- Sync runs after each change (debounced), on tab focus, when coming back online,
-  and every 60 s while visible — in one tab at a time (`navigator.locks`). Nothing is
+- **Live updates** (`0006_realtime.sql`): a one-row-per-account `sync_signals` table changes whenever the
+  company is saved or a team report arrives, and every open dashboard is subscribed to it over Supabase
+  Realtime (free tier). Hearing it, the dashboard syncs within about a second; company data itself never
+  travels through Realtime. Without 0006 (or offline), it falls back to checking every 20 s.
+- Sync runs after each change (debounced), on tab focus, when coming back online, on every live
+  signal, and on a timer as a safety net — in one tab at a time (`navigator.locks`). Nothing is
   uploaded while the browser refuses to save locally. The Supabase client is loaded only when
   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_KEY` are set at build time.

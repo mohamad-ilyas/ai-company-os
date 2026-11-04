@@ -30,6 +30,13 @@ function errorKey(error: string | null) {
 export function CloudStatusBadge() {
   const { t } = useI18n();
   const cloud = useCloud();
+  if (cloud.status === "synced" && cloud.live) {
+    return (
+      <Badge tone="success" dot title={t("cloud.liveHint")}>
+        {t("cloud.live")}
+      </Badge>
+    );
+  }
   return (
     <Badge tone={TONE[cloud.status]} dot>
       {t(`cloud.status.${cloud.status}`)}

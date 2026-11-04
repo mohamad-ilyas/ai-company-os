@@ -15,12 +15,13 @@ identity; don't change it.
   If a feature seems to need money, stop and say so.
 - **No backend.** Static Next.js export on GitHub Pages. No API routes, server
   actions, middleware, or `cookies()`.
-- **CEO approval** is required for: production deployment *of this dashboard* (the
-  `github-pages` environment reviewer), production DB changes (Supabase migrations),
-  public releases, client proposals, external communications, contracts,
-  spending, subscriptions, billing, sensitive client data, deleting important
-  data, irreversible changes. Prepare these; never perform them. Never `git push`
-  unless the CEO asks in this session.
+- **Pushes and deploys don't wait for the CEO** (CEO decision, 2026-11-04): push
+  both repositories when work is verified; `main` of this repository deploys after
+  CI passes; client releases follow the COO's Release process.
+- **CEO approval** is still required for: production DB changes (Supabase
+  migrations), client proposals, external communications, contracts, spending,
+  subscriptions, billing, sensitive client data, deleting important data,
+  irreversible changes. Prepare these; never perform them without the decision.
 - **Honesty.** Never fabricate tests, metrics, or progress. Sample records carry
   `sample: true` and are excluded from KPIs. The dashboard never shows an
   employee as working unless an assignment was actually started.

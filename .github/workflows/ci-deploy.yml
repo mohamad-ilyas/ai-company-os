@@ -1,9 +1,8 @@
 # Verifies every change and deploys main to GitHub Pages.
 # Cost: $0 — GitHub-hosted runners are free for public repositories.
 #
-# CEO approval gate: the deploy job uses the "github-pages" environment. In
-# Settings → Environments → github-pages, add yourself under "Required reviewers"
-# and every production deployment will wait for your approval in GitHub.
+# Deploys from main once every check passes (CEO decision, 2026-11-04: deploys don't
+# wait for the CEO). The "github-pages" environment allows only the main branch.
 name: CI & Deploy
 
 on:

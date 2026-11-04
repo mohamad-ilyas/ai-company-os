@@ -59,13 +59,17 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
   const channel = report.source === "claude_chat" ? "claude_chat" : "claude_code";
   const ctx = (actor: ActorId): Ctx => ({ actor, role: "operator", now });
 
+  // A key is the team's own key (cedar-app, cedar-app/build) or a dashboard id in lowercase (prj-003, tsk-0012),
+  // so the team can work on projects and tasks the CEO created in the dashboard.
+  const findProject = (k: string) => s.projects.find((x) => x.extKey === k) ?? (/^prj-\d+$/.test(k) ? s.projects.find((x) => x.id === k.toUpperCase()) : undefined);
+  const findTask = (k: string) => s.tasks.find((x) => x.extKey === k) ?? (/^tsk-\d+$/.test(k) ? s.tasks.find((x) => x.id === k.toUpperCase()) : undefined);
   const project = (k: string): Project => {
-    const p = s.projects.find((x) => x.extKey === k);
+    const p = findProject(k);
     if (!p) throw new DomainError("not_found", { id: k });
     return p;
   };
   const task = (k: string): Task => {
-    const t = s.tasks.find((x) => x.extKey === k);
+    const t = findTask(k);
     if (!t) throw new DomainError("not_found", { id: k });
     return t;
   };
@@ -112,7 +116,8 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
   const apply = (a: ReportAction) => {
     switch (a.type) {
       case "project.upsert": {
-        const existing = s.projects.find((p) => p.extKey === a.key);
+        const existing = findProject(a.key);
+        if (!existing && /^prj-\d+$/.test(a.key)) throw new DomainError("not_found", { id: a.key }); // a dashboard id that doesn't exist
         const manager = (a.managerId ?? existing?.managerId ?? "EMP-003") as EmployeeId;
         if (existing) {
           s = updateProject(s, ctx(manager), existing.id, {
@@ -156,7 +161,8 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
       case "task.upsert": {
         const p = project(a.projectKey);
         const deps = (a.dependsOn ?? []).map((k) => task(k).id);
-        const existing = s.tasks.find((t) => t.extKey === a.key);
+        const existing = findTask(a.key);
+        if (!existing && /^tsk-\d+$/.test(a.key)) throw new DomainError("not_found", { id: a.key });
         const fields = {
           title: a.title,
           ...(a.description !== undefined && { description: a.description }),

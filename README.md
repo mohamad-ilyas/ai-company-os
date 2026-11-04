@@ -53,6 +53,18 @@ An AI employee is a **profile** — not a background process. Nothing runs unles
   without use — unpause it at supabase.com/dashboard.
 - Roles (CEO / Operator / Viewer) are UI safeguards; the data itself is protected by sign-in + RLS.
 
+## Live, with the team
+
+- **The data is live and stored in the cloud** (Supabase, free tier). The site's files are static (GitHub Pages,
+  $0), but every change — yours on any device, or the team's — is saved to the cloud and pushed to every open
+  dashboard within about a second over Supabase Realtime (the **Live** badge). No reload needed.
+- **Give the team work from the dashboard:** on any task or project, **Send to the team** opens Claude Code
+  with the request ready (ids included). Press send; the team reports into that same task or project as they
+  go — when each step starts and ends. **Message Charlotte** does the same for anything else.
+- **Honest limit:** the team works inside your Claude sessions (Pro plan, no paid API), so a session has to be
+  running — the dashboard can't start one by itself. From Claude Code on the Mac reports arrive in seconds;
+  from Claude Code on the web, in seconds with the network secret, otherwise in about a minute via GitHub.
+
 ## The AI team channel
 
 Claude sessions report the team's work straight into the dashboard: projects, tasks, each employee's output and
@@ -105,8 +117,8 @@ outcomes, submission limits and write guards — the dashboard also works agains
 One-time setup (needs the repository owner):
 1. Create the repository under `mohamad-ilyas`. It must be **public** for free GitHub Pages.
 2. Settings → Pages → Source: **GitHub Actions**.
-3. Settings → Environments → `github-pages` → add yourself as **Required reviewer** — every production
-   deploy then waits for your approval inside GitHub.
+3. Settings → Environments → `github-pages`: deployments from `main` only. (No required reviewer: the CEO
+   decided on 2026-11-04 that deploys don't wait for them — CI must pass first.)
 
 ## Development
 
