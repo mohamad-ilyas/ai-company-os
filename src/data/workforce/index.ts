@@ -6,7 +6,7 @@ import { techLead, mobileEngineer, frontendEngineer, backendEngineer } from "./e
 import { qaManager, manualQa, qaAutomation, qualityReviewer } from "./qa";
 
 /** Bump when profiles, reporting lines, or instructions change, so saved companies pick them up. */
-export const WORKFORCE_VERSION = 2;
+export const WORKFORCE_VERSION = 3;
 
 export const EMPLOYEES: Employee[] = [
   coo,

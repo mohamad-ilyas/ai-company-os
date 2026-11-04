@@ -14,8 +14,9 @@
   --border-strong: #cfcec7;
   --fg: #0f0f0e;
   --fg-2: #4d4c49;
-  --muted: #76756f;
+  --muted: #6b6a64;
   --accent: #1c5cab;
+  --accent-text: #1c5cab;
   --accent-hover: #184f95;
   --accent-fg: #ffffff;
   --accent-soft: #e6eefa;
@@ -47,6 +48,7 @@
   --fg-2: #c3c2b7;
   --muted: #929189;
   --accent: #3987e5;
+  --accent-text: #5598e7;
   --accent-hover: #5598e7;
   --accent-fg: #0b0b0b;
   --accent-soft: #17273d;
@@ -77,6 +79,7 @@
   --color-fg-2: var(--fg-2);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
@@ -164,4 +167,8 @@ dialog {
    truncation land on the correct side. */
 [dir="rtl"] :is(td, .truncate, .line-clamp-2, .bidi) {
   unicode-bidi: plaintext;
+}
+/* plaintext also flips text-align for English lines; keep them aligned with the Arabic around them. */
+[dir="rtl"] .bidi {
+  text-align: match-parent;
 }

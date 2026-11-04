@@ -33,7 +33,9 @@ export function AskCoo({ compact = false }: { compact?: boolean }) {
     if (!message) return;
     const url = askCooUrl(message);
     // Open first (synchronously, inside the click) so the browser allows the new tab.
-    const win = window.open(url, "_blank", "noopener");
+    // Not the "noopener" feature: with it, window.open always returns null and every send would look blocked.
+    const win = window.open(url, "_blank");
+    if (win) win.opener = null;
     run((st, ctx) => postMessage(st, ctx, { kind: "direct", refId: null, body: message, authorId: "ceo" }));
     setText("");
     setOpened(!!win);
@@ -56,13 +58,13 @@ export function AskCoo({ compact = false }: { compact?: boolean }) {
           <Send className="flip-rtl size-4" />
           {t("communication.askSend")}
         </Button>
-        {!compact && <p className="flex-1 text-xs text-muted">{t("communication.askHow")}</p>}
+        <p className="flex-1 text-xs text-muted">{t(compact ? "communication.askHowShort" : "communication.askHow")}</p>
       </div>
       {opened && <Notice>{t("communication.askOpened")}</Notice>}
       {fallback && (
         <Notice tone="warning">
           {t("communication.askPopupBlocked")}{" "}
-          <a href={fallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline" data-testid="ask-coo-link">
+          <a href={fallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent-text underline" data-testid="ask-coo-link">
             claude.ai/code
           </a>
         </Notice>

@@ -3,21 +3,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { safeLink } from "@/lib/safe-url";
 
 // A small, safe Markdown renderer: builds React elements (never raw HTML), so
 // content imported from Claude sessions cannot inject markup or scripts.
 // Supports headings, paragraphs, lists, fenced code, blockquotes, tables,
 // **bold**, *italic*, `code`, and [links](url).
-
-function safeHref(url: string): string | null {
-  if (url.startsWith("/") || url.startsWith("#")) return url;
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:" || u.protocol === "http:" || u.protocol === "mailto:" ? url : null;
-  } catch {
-    return null;
-  }
-}
 
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -34,10 +25,10 @@ function inline(text: string, keyBase: string): ReactNode[] {
     else if (tok.startsWith("*")) out.push(<em key={key}>{tok.slice(1, -1)}</em>);
     else {
       const [, label, url] = tok.match(/\[([^\]]+)\]\(([^)\s]+)\)/)!;
-      const href = safeHref(url);
-      if (!href) out.push(label);
-      else if (href.startsWith("/")) out.push(<Link key={key} href={href} className="text-accent underline underline-offset-2">{label}</Link>);
-      else out.push(<a key={key} href={href} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">{label}</a>);
+      const link = safeLink(url);
+      if (!link) out.push(label);
+      else if (link.kind === "internal") out.push(<Link key={key} href={link.href} className="text-accent-text underline underline-offset-2">{label}</Link>);
+      else out.push(<a key={key} href={link.href} target="_blank" rel="noopener noreferrer" className="text-accent-text underline underline-offset-2">{label}</a>);
     }
     last = m.index + tok.length;
   }
@@ -72,7 +63,7 @@ export function Markdown({ source, className }: { source: string; className?: st
       const level = h[1].length;
       const cls = ["text-xl font-semibold", "text-lg font-semibold", "text-base font-semibold", "text-sm font-semibold"][level - 1];
       const Tag = (["h2", "h3", "h4", "h5"] as const)[level - 1];
-      blocks.push(<Tag key={key} className={cn(cls, "mt-5 text-fg first:mt-0")}>{inline(h[2], key)}</Tag>);
+      blocks.push(<Tag key={key} dir="auto" className={cn(cls, "mt-5 text-start text-fg first:mt-0")}>{inline(h[2], key)}</Tag>);
       i++;
       continue;
     }
@@ -86,11 +77,11 @@ export function Markdown({ source, className }: { source: string; className?: st
         <div key={key} className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr>{head.map((c, j) => <th key={j} className="border-b border-border px-3 py-2 text-start font-semibold">{inline(c, `${key}h${j}`)}</th>)}</tr>
+              <tr>{head.map((c, j) => <th key={j} dir="auto" className="border-b border-border px-3 py-2 text-start font-semibold">{inline(c, `${key}h${j}`)}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((r, ri) => (
-                <tr key={ri}>{r.map((c, j) => <td key={j} className="border-b border-border px-3 py-2 align-top">{inline(c, `${key}r${ri}c${j}`)}</td>)}</tr>
+                <tr key={ri}>{r.map((c, j) => <td key={j} dir="auto" className="border-b border-border px-3 py-2 text-start align-top">{inline(c, `${key}r${ri}c${j}`)}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -113,7 +104,8 @@ export function Markdown({ source, className }: { source: string; className?: st
       }
       const L = ordered ? "ol" : "ul";
       blocks.push(
-        <L key={key} className={cn("space-y-1 ps-5", ordered ? "list-decimal" : "list-disc")}>
+        // A list takes the direction of its first item, so bullets and padding stay on the same side.
+        <L key={key} dir="auto" className={cn("space-y-1 ps-5 text-start", ordered ? "list-decimal" : "list-disc")}>
           {items.map((it, j) => <li key={j}>{inline(it, `${key}-${j}`)}</li>)}
         </L>,
       );
@@ -122,7 +114,7 @@ export function Markdown({ source, className }: { source: string; className?: st
     if (line.startsWith(">")) {
       const body: string[] = [];
       while (i < lines.length && lines[i].startsWith(">")) body.push(lines[i++].replace(/^>\s?/, ""));
-      blocks.push(<blockquote key={key} className="border-s-2 border-border-strong ps-3 text-fg-2">{inline(body.join(" "), key)}</blockquote>);
+      blocks.push(<blockquote key={key} dir="auto" className="border-s-2 border-border-strong ps-3 text-start text-fg-2">{inline(body.join(" "), key)}</blockquote>);
       continue;
     }
     if (!line.trim()) {
@@ -134,7 +126,7 @@ export function Markdown({ source, className }: { source: string; className?: st
     if (!para.length) para.push(lines[i++]);
     // Single line breaks are kept: AI output often uses them for separate items.
     blocks.push(
-      <p key={key}>
+      <p key={key} dir="auto" className="text-start">
         {para.map((l, j) => (
           <span key={j}>
             {j > 0 && <br />}

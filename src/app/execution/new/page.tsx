@@ -29,7 +29,7 @@ function NewAssignment() {
   const [taskId, setTaskId] = useState(presetTask?.id ?? "");
   const [title, setTitle] = useState(presetTask?.title ?? "");
   const [instructions, setInstructions] = useState(
-    presetTask ? [presetTask.description, presetTask.expectedOutput && `Expected output: ${presetTask.expectedOutput}`].filter(Boolean).join("\n\n") : "",
+    presetTask ? [presetTask.description, presetTask.expectedOutput && t("execution.prefillExpected", { output: presetTask.expectedOutput })].filter(Boolean).join("\n\n") : "",
   );
   const [attachments, setAttachments] = useState<LinkRef[]>(presetTask?.attachments ?? []);
   const [channel, setChannel] = useState<ExecutionChannel>(() => {

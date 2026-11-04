@@ -6,7 +6,8 @@
 // "aicos-agent-key". It is never written to disk by this script.
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseAgentReport } from "../src/lib/execution/report-schema";
 
 const args = process.argv.slice(2);
@@ -47,9 +48,16 @@ function agentKey(): string | null {
 }
 
 const key = agentKey();
-const config = JSON.parse(await readFile(join(process.cwd(), "aicos.config.json"), "utf8"));
-const res = await fetch(`${config.supabaseUrl}/rest/v1/rpc/submit_agent_report`, {
+const PINNED_HOST = "qdezhdwmjrmpqjgzludj.supabase.co"; // the dashboard's project (public ref); never send the key elsewhere
+const config = JSON.parse(await readFile(join(dirname(fileURLToPath(import.meta.url)), "..", "aicos.config.json"), "utf8"));
+const target = new URL(config.supabaseUrl);
+if (target.protocol !== "https:" || target.host !== PINNED_HOST) {
+  console.error(`REFUSED: aicos.config.json points at ${target.host}, not ${PINNED_HOST}. The agent key was not sent.`);
+  process.exit(2);
+}
+const res = await fetch(`${target.origin}/rest/v1/rpc/submit_agent_report`, {
   method: "POST",
+  redirect: "error",
   headers: { apikey: config.supabasePublishableKey, "Content-Type": "application/json" },
   body: JSON.stringify(key ? { p_key: key, p_payload: parsed.report } : { p_payload: parsed.report }),
 });

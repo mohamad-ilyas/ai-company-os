@@ -70,7 +70,7 @@ function DeliverableDialog({ item, onClose }: { item?: Deliverable; onClose: () 
           )}
         </Field>
         <Field label={t("common.location")} hint={t("deliverables.locationHint")} required className="sm:col-span-2">
-          {(id, hint) => <Input id={id} aria-describedby={hint} dir="ltr" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} placeholder="https://github.com/… or docs/…" data-testid="deliverable-location" />}
+          {(id, hint) => <Input id={id} aria-describedby={hint} dir="ltr" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} placeholder={t("deliverables.locationPlaceholder")} data-testid="deliverable-location" />}
         </Field>
         <Field label={t("common.project")}>
           {(id) => (

@@ -43,10 +43,12 @@ An AI employee is a **profile** — not a background process. Nothing runs unles
 
 ## Your data
 
-- **Cloud sync (Settings → Cloud sync):** sign in with an emailed link and the same company appears on your phone
-  and computer. It's stored in your private Supabase project (free tier) behind Row Level Security. Works offline;
+- **Cloud sync (Settings → Cloud sync):** sign in with GitHub (or an emailed link, opened in the same browser) and the
+  same company appears on your phone and computer. It's stored in your private Supabase project (free tier) behind Row Level Security. Works offline;
   uploads when back online.
 - Without signing in, data stays in **this browser** only. Visitors to the public site see only the seed data.
+- **Backups on this device:** before an import, reset, restore, or a sync that replaces this device's data, a copy is
+  kept (Settings → Data, last 5). If the dashboard ever crashes, the error screen offers *Download my data*.
 - **Settings → Data → Export JSON** is your independent backup. The free Supabase project pauses after a week
   without use — unpause it at supabase.com/dashboard.
 - Roles (CEO / Operator / Viewer) are UI safeguards; the data itself is protected by sign-in + RLS.
@@ -92,11 +94,13 @@ See `docs/agent-report.md` and Knowledge Base → *SOP: Request work from your i
 
 ## Deploying (GitHub Pages)
 
-The workflow in `.github/workflows/ci-deploy.yml` lints, type-checks, runs unit and E2E tests, builds, and
-deploys `main` to `https://<user>.github.io/ai-company-os/`.
+The workflow in `.github/workflows/ci-deploy.yml` lints, type-checks, runs unit tests and `npm audit`, builds once
+with the production configuration, runs the E2E suite (Chromium + iPhone WebKit, accessibility checks) against that
+build, scans it for secrets, and deploys that same build of `main` to `https://<user>.github.io/ai-company-os/`.
 
 Cloud sync connects to the Supabase project in `aicos.config.json` (public URL and publishable key only).
-The database schema is in `supabase/migrations/`.
+The database schema is in `supabase/migrations/` (apply them in order; `0005_hardening.sql` adds atomic report
+outcomes, submission limits and write guards — the dashboard also works against a database without it).
 
 One-time setup (needs the repository owner):
 1. Create the repository under `mohamad-ilyas`. It must be **public** for free GitHub Pages.
@@ -110,7 +114,7 @@ One-time setup (needs the repository owner):
 npm install
 npm run dev              # http://localhost:3000
 npm run verify           # lint + typecheck + unit tests + workforce drift check + build
-npm run test:e2e         # builds under /ai-company-os and runs Playwright
+npm run test:e2e         # builds under /ai-company-os (production config) and runs Playwright; Supabase is stubbed
 npm run preview          # serve out/ like GitHub Pages at http://localhost:4173/ai-company-os/
 npm run workforce:sync   # regenerate .claude/agents after editing src/data/workforce
 npm run result:check -- company/outbox/EXE-0001.result.json

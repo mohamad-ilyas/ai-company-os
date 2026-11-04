@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { createSeed } from "@/data/seed";
 import { DomainError, log, type Ctx } from "./domain";
-import { parseCompanyState } from "./state-schema";
+import { parseCompanyState, parseOrRepairCompanyState } from "./state-schema";
 import { parseAgentReport } from "./execution/report-schema";
 import { applyAgentReport } from "./execution/apply-report";
 import { formatDate, formatDateTime, makeT, pick, type Translate } from "./i18n";
@@ -16,9 +16,10 @@ import type { ActorId, CompanyState, EmployeeId, L10n, Locale } from "./types";
 import { useToast } from "@/components/ui/toast";
 import { cloudConfigured, loadSync, writeMeta } from "./cloud/status";
 import { migrateState } from "./migrate";
+import { LEGACY_BACKUP_KEY, migrateLegacyBackup, readBackup, saveBackup, type BackupReason } from "./backups";
 
 export const STORAGE_KEY = "aicos:state:v1";
-export const BACKUP_KEY = "aicos:state:backup";
+export const BACKUP_KEY = LEGACY_BACKUP_KEY;
 export const CORRUPT_KEY = "aicos:state:corrupt";
 export const PREFS_KEY = "aicos:prefs";
 export const LAST_EXPORT_KEY = "aicos:lastExport";
@@ -50,29 +51,61 @@ function applyPrefs(s: CompanyState) {
   }
 }
 
-type LoadResult = { state: CompanyState; recovered: boolean };
+type LoadProblem = "corrupt" | "repaired" | "unavailable" | null;
+type LoadResult = { state: CompanyState; problem: LoadProblem };
 
 function load(): LoadResult {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { state: createSeed(), recovered: false };
+  let raw: string | null;
   try {
-    const parsed = parseCompanyState(JSON.parse(raw));
-    if (parsed.ok) return { state: parsed.state, recovered: false };
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked (private mode, browser setting): work in memory and say so.
+    return { state: createSeed(), problem: "unavailable" };
+  }
+  if (!raw) return { state: createSeed(), problem: null };
+  try {
+    const parsed = parseOrRepairCompanyState(JSON.parse(raw));
+    if (parsed.ok) return { state: parsed.state, problem: parsed.repaired.length ? "repaired" : null };
   } catch {
     /* fall through */
   }
-  localStorage.setItem(CORRUPT_KEY, raw);
-  return { state: createSeed(), recovered: true };
+  try {
+    localStorage.setItem(CORRUPT_KEY, raw);
+  } catch {
+    /* nothing more we can do */
+  }
+  // The starting data shown now must never be uploaded over the cloud copy: forget the
+  // last sync, so the next sync downloads the cloud copy instead.
+  if (cloudConfigured) safeWriteMeta({ owner: null, base: 0, dirty: false });
+  return { state: createSeed(), problem: "corrupt" };
 }
+
+function safeWriteMeta(patch: Parameters<typeof writeMeta>[0]) {
+  try {
+    writeMeta(patch);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** False after the browser refused to store the data: nothing is uploaded until a save succeeds again. */
+let persistOk = true;
 
 /** Returns false if the browser refused to store the data (quota). */
 function persist(s: CompanyState): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    return true;
+    persistOk = true;
   } catch {
-    return false;
+    persistOk = false;
   }
+  return persistOk;
+}
+
+/** The first problem that would stop this state from loading again, or null. */
+export function stateProblem(s: CompanyState): string | null {
+  const parsed = parseCompanyState(s);
+  return parsed.ok ? null : parsed.issues[0];
 }
 
 const changeListeners = new Set<() => void>();
@@ -94,57 +127,78 @@ function keepDevicePrefs(remote: CompanyState): CompanyState {
   return { ...remote, settings: { ...remote.settings, locale, theme, role } };
 }
 
-/** Replace all data (import / reset), keeping the previous data as a one-step backup. */
-export function replaceState(next: CompanyState, activityKey: "data_imported" | "data_reset"): boolean {
-  if (current) {
-    try {
-      localStorage.setItem(BACKUP_KEY, JSON.stringify(current));
-    } catch {
-      /* backup is best effort */
-    }
-  }
+/**
+ * Replace all data (import / reset). The previous data is kept as a restorable backup first;
+ * if no backup can be stored, nothing is replaced.
+ */
+export async function replaceState(next: CompanyState, activityKey: "data_imported" | "data_reset"): Promise<boolean> {
+  if (current && !(await saveBackup(activityKey === "data_reset" ? "reset" : "import", current))) return false;
   const ctx: Ctx = { actor: "ceo", role: next.settings.role, now: new Date().toISOString() };
   return setState(log(migrateState(next, ctx.now).state, ctx, "data", activityKey, {}));
 }
 
-export function restoreBackup(): boolean {
-  const raw = localStorage.getItem(BACKUP_KEY);
-  if (!raw) return false;
-  const parsed = parseCompanyState(JSON.parse(raw));
-  if (!parsed.ok) return false;
-  localStorage.removeItem(BACKUP_KEY);
-  return setState(parsed.state);
+/** Restores one backup (see backups.ts); the data it replaces is backed up too. */
+export async function restoreBackup(id: number): Promise<"restored" | "invalid" | "failed"> {
+  const raw = await readBackup(id);
+  const parsed = raw ? parseOrRepairCompanyState(raw) : null;
+  if (!parsed?.ok) return "invalid";
+  if (current && !(await saveBackup("import", current))) return "failed";
+  return setState(migrateState(keepDevicePrefs(parsed.state), new Date().toISOString()).state) ? "restored" : "failed";
+}
+
+export interface ReportResult {
+  outcome: "applied" | "partial" | "rejected";
+  /** Technical detail, stored with the report in the cloud inbox. */
+  detail: string;
+  applied: number;
+  total: number;
+  /** Every action had already been applied by an earlier delivery. */
+  duplicate: boolean;
+  problems: string[];
+  /** The company changed (and must be saved before the outcome is final). */
+  changed: boolean;
 }
 
 /** Validates and applies an AI team report to the current state (also used by manual import). */
-export function applyReportToStore(payload: unknown): { outcome: "applied" | "partial" | "rejected"; detail: string } {
+export function applyReportToStore(payload: unknown): ReportResult {
   const parsed = parseAgentReport(payload);
-  if (!parsed.ok) return { outcome: "rejected", detail: parsed.issues.join("; ") };
-  // Never apply the same report twice (re-delivery, recovered claims, two open tabs).
-  if (current!.activity.some((a) => a.key === "agent_report_applied" && a.params.reportId === parsed.report.reportId)) {
-    return { outcome: "applied", detail: "Already applied earlier — skipped to avoid duplicates." };
-  }
-  const { state, applied, warnings } = applyAgentReport(current!, new Date().toISOString(), parsed.report);
-  setState(state);
+  if (!parsed.ok) return { outcome: "rejected", detail: parsed.issues.join("; "), applied: 0, total: 0, duplicate: false, problems: parsed.issues, changed: false };
   const total = parsed.report.actions.length + parsed.skipped.length;
-  const problems = [...parsed.skipped.map((x) => `skipped ${x}`), ...warnings];
-  const detail = [`${applied} of ${total} actions applied`, ...problems].join("; ");
-  return { outcome: problems.length === 0 ? "applied" : applied > 0 ? "partial" : "rejected", detail };
+  const r = applyAgentReport(current!, new Date().toISOString(), parsed.report);
+  // Re-delivery, recovered claims, two open tabs: actions already applied are never run twice.
+  if (r.applied === 0 && r.complete && r.alreadyApplied > 0) {
+    return { outcome: "applied", detail: "Already applied earlier; skipped to avoid duplicates.", applied: 0, total, duplicate: true, problems: [], changed: false };
+  }
+  const problems = [...parsed.skipped.map((x) => `skipped ${x}`), ...r.warnings];
+  const done = r.applied + r.alreadyApplied;
+  const changed = r.applied > 0;
+  if (changed && !setState(r.state)) {
+    return { outcome: "rejected", detail: "The browser refused to save (storage full).", applied: 0, total, duplicate: false, problems: ["storage full"], changed: false };
+  }
+  const detail = [`${done} of ${total} actions applied`, ...problems].join("; ");
+  return { outcome: problems.length === 0 ? "applied" : done > 0 ? "partial" : "rejected", detail, applied: done, total, duplicate: false, problems, changed };
 }
 
-let recoveredOnLoad = false;
+/** The localized one-line summary of a report result, for toasts. */
+export function describeReportResult(t: Translate, r: ReportResult): string {
+  if (r.duplicate) return t("agent.duplicate");
+  const head = t("agent.appliedCount", { applied: String(r.applied), total: String(r.total) });
+  return r.problems.length ? `${head} ${t("agent.problemsCount", { count: String(r.problems.length) })}` : head;
+}
+
+let loadProblem: LoadProblem = null;
 
 /** Loads lazily on the first client read; the server snapshot is null so prerendered HTML shows the fallback. */
 function getClientSnapshot(): CompanyState | null {
   if (!current) {
-    const { state, recovered } = load();
+    const { state, problem } = load();
     const migrated = migrateState(state, new Date().toISOString());
     current = migrated.state;
-    recoveredOnLoad = recovered;
-    if (migrated.changed) {
+    loadProblem = problem;
+    if ((migrated.changed || problem === "repaired") && problem !== "corrupt" && problem !== "unavailable") {
       persist(current);
       // Make sure the upgraded company is uploaded to the cloud on the next sync.
-      if (cloudConfigured) writeMeta({ dirty: true });
+      if (cloudConfigured) safeWriteMeta({ dirty: true });
     }
     applyPrefs(current);
   }
@@ -167,13 +221,8 @@ export function StoreProvider({ children, fallback }: { children: ReactNode; fal
           const migrated = migrateState(remote, new Date().toISOString());
           setState(keepDevicePrefs(migrated.state), !migrated.changed);
         },
-        backup: (local) => {
-          try {
-            localStorage.setItem(BACKUP_KEY, JSON.stringify(local));
-          } catch {
-            /* best effort */
-          }
-        },
+        backup: (local, reason: BackupReason) => saveBackup(reason, local),
+        canUpload: () => persistOk,
         onLocalChange: (fn) => {
           changeListeners.add(fn);
           return () => changeListeners.delete(fn);
@@ -181,8 +230,9 @@ export function StoreProvider({ children, fallback }: { children: ReactNode; fal
         applyReport: (payload) => {
           const result = applyReportToStore(payload);
           const t = makeT(current!.settings.locale);
-          if (result.outcome === "rejected") toast.error(t("agent.received", { detail: result.detail }));
-          else toast.success(t("agent.received", { detail: result.detail }));
+          const text = t("agent.received", { detail: describeReportResult(t, result) });
+          if (result.outcome === "rejected") toast.error(text);
+          else if (!result.duplicate) toast.success(text);
           return result;
         },
         notify: (kind) => {
@@ -196,14 +246,26 @@ export function StoreProvider({ children, fallback }: { children: ReactNode; fal
   }, [toast]);
 
   useEffect(() => {
-    if (recoveredOnLoad && current) {
-      recoveredOnLoad = false;
-      toast.error(makeT(current.settings.locale)("app.storageError"));
+    if (loadProblem && current) {
+      const t = makeT(current.settings.locale);
+      if (loadProblem === "corrupt") toast.error(t("app.storageError"));
+      else if (loadProblem === "unavailable") toast.error(t("app.storageUnavailable"));
+      else toast.success(t("app.storageRepaired"));
+      loadProblem = null;
     }
+    void migrateLegacyBackup((raw) => {
+      const p = parseOrRepairCompanyState(raw);
+      return p.ok ? p.state : null;
+    });
     // Keep tabs in sync and follow OS theme changes.
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY || !e.newValue) return;
-      const parsed = parseCompanyState(JSON.parse(e.newValue));
+      let parsed: ReturnType<typeof parseCompanyState>;
+      try {
+        parsed = parseCompanyState(JSON.parse(e.newValue));
+      } catch {
+        return; // another tab wrote something unreadable: keep what this tab has
+      }
       if (parsed.ok) {
         current = parsed.state;
         applyPrefs(parsed.state);
@@ -278,6 +340,9 @@ export function useRun() {
         const out = op(s, ctx);
         const [next, value] = Array.isArray(out) ? out : [out, undefined];
         if (next === s) return { ok: true, value };
+        // Never save something the loader would reject (e.g. a field over its length limit).
+        const problem = stateProblem(next);
+        if (problem) throw new DomainError("invalid_data", { detail: problem });
         if (!setState(next)) toast.error(t("app.storageFull"));
         else if (successMessage) toast.success(successMessage);
         return { ok: true, value };

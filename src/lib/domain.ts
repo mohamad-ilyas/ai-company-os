@@ -12,6 +12,7 @@ import type {
   ChannelKind,
   CompanyState,
   Deliverable,
+  EditedRecords,
   EmployeeId,
   Execution,
   KnowledgeArticle,
@@ -83,6 +84,14 @@ export function log(
   const event: ActivityEvent = { id, at: ctx.now, actor: ctx.actor, type, key, params, refType: ref.type, refId: ref.id };
   // Newest first; keep the log bounded so localStorage never fills up.
   return { ...s, activity: [event, ...s.activity].slice(0, 2000) };
+}
+
+/** Remembers that the CEO changed a built-in record, so upgrades never overwrite it. */
+export function markEdited(state: CompanyState, kind: keyof EditedRecords, id: string): CompanyState {
+  const edited: EditedRecords = state.edited ?? { instructions: [], articles: [], managers: [] };
+  const list = edited[kind] as string[];
+  if (list.includes(id)) return state;
+  return { ...state, edited: { ...edited, [kind]: [...list, id] } };
 }
 
 function bump(state: CompanyState): CompanyState {
@@ -181,8 +190,14 @@ export function setProjectStatus(state: CompanyState, ctx: Ctx, id: string, stat
   if (status === "awaiting_ceo_approval" || !PROJECT_TRANSITIONS[p.status].includes(status)) {
     throw new DomainError("invalid_transition", { from: p.status, to: status });
   }
-  if (status === "delivered" && !hasApproved(state, { projectId: id })) {
+  // Delivery needs the approval of this project's own release request — not just any approval on the project.
+  if (status === "delivered" && !state.approvals.some((a) => a.id === p.releaseApprovalId && a.status === "approved")) {
     throw new DomainError("approval_required");
+  }
+  // …and every protected task of the project must be done (e.g. the approved client proposal).
+  if (status === "delivered") {
+    const open = state.tasks.filter((t) => t.projectId === id && t.protectedAction && t.status !== "completed" && t.status !== "cancelled");
+    if (open.length) throw new DomainError("protected_tasks_open", { ids: open.map((t) => t.id).join(", ") });
   }
   let s: CompanyState = { ...state, projects: replace(state.projects, { ...p, status, updatedAt: ctx.now }) };
   s = log(s, ctx, "project", "project_status", { id, name: p.name, from: p.status, to: status }, { type: "project", id });
@@ -246,7 +261,12 @@ export function requestProjectRelease(
   if (!PROJECT_TRANSITIONS[p.status].includes("awaiting_ceo_approval")) {
     throw new DomainError("invalid_transition", { from: p.status, to: "awaiting_ceo_approval" });
   }
-  let s = createApprovalInternal(state, ctx, {
+  // Once a release of this project needed the CEO, later releases (after rework) need the CEO too.
+  const ceoReleased = state.approvals.some((a) => a.projectId === id && !a.taskId && a.status === "approved" && APPROVAL_LEVEL[a.action] === "ceo");
+  if (ceoReleased && APPROVAL_LEVEL[input.action] !== "ceo") throw new DomainError("release_needs_ceo", { action: input.action });
+  let approvalId: string;
+  let s: CompanyState;
+  [s, approvalId] = createApprovalInternal(state, ctx, {
     action: input.action,
     title: `${p.name}: ${input.action}`,
     requestedBy: ctx.actor,
@@ -256,9 +276,9 @@ export function requestProjectRelease(
     supportingFiles: [],
     projectId: id,
     taskId: null,
-  })[0];
+  });
   const fresh = findProject(s, id);
-  s = { ...s, projects: replace(s.projects, { ...fresh, status: "awaiting_ceo_approval", updatedAt: ctx.now }) };
+  s = { ...s, projects: replace(s.projects, { ...fresh, status: "awaiting_ceo_approval", releaseApprovalId: approvalId, updatedAt: ctx.now }) };
   s = log(s, ctx, "project", "project_status", { id, name: p.name, from: p.status, to: "awaiting_ceo_approval" }, { type: "project", id });
   return bump(s);
 }
@@ -383,6 +403,10 @@ export function createTask(state: CompanyState, ctx: Ctx, input: TaskInput): [Co
 export function updateTask(state: CompanyState, ctx: Ctx, id: string, patch: Partial<TaskInput>): CompanyState {
   require(ctx, "write");
   const t = findTask(state, id);
+  // Once a task is protected, only the CEO can change or remove which approval it needs (no downgrading).
+  if (t.protectedAction && patch.protectedAction !== undefined && patch.protectedAction !== t.protectedAction) {
+    require(ctx, "decide_approvals");
+  }
   if (patch.title !== undefined) nonEmpty(patch.title, "title");
   if (patch.assigneeId !== undefined) assertEmployee(state, patch.assigneeId);
   if (patch.dependencies) {
@@ -428,12 +452,31 @@ export function openDependencies(state: CompanyState, task: Task): Task[] {
     .filter((t): t is Task => !!t && t.status !== "completed" && t.status !== "cancelled");
 }
 
-function hasApproved(state: CompanyState, ref: { taskId?: string; projectId?: string }, action?: ProtectedAction) {
-  return state.approvals.some(
-    (a) =>
-      a.status === "approved" &&
-      (ref.taskId ? a.taskId === ref.taskId : a.projectId === ref.projectId) &&
-      (!action || a.action === action),
+/** When a completed task was last reopened. Approvals decided before that don't cover the new work. */
+function lastReopenedAt(t: Task): string | null {
+  for (let i = t.history.length - 1; i >= 0; i--) {
+    const h = t.history[i];
+    if (h.key === "status" && h.params?.from === "completed") return h.at;
+  }
+  return null;
+}
+
+function lastEnteredReviewAt(t: Task): string | null {
+  for (let i = t.history.length - 1; i >= 0; i--) {
+    const h = t.history[i];
+    if (h.key === "status" && h.params?.to === "under_review") return h.at;
+  }
+  return null;
+}
+
+/** An approval that covers this task's protected action for its current round of work. */
+function coveringApproval(state: CompanyState, t: Task): Approval | undefined {
+  if (!t.protectedAction) return undefined;
+  // Only a decision on the work as submitted counts: decided after the task last went to review (and after any reopen).
+  const anchors = [lastReopenedAt(t), lastEnteredReviewAt(t)].filter((x): x is string => !!x).sort();
+  const since = anchors[anchors.length - 1] ?? null;
+  return state.approvals.find(
+    (a) => a.status === "approved" && a.taskId === t.id && a.action === t.protectedAction && (!since || (a.decidedAt ?? "") > since),
   );
 }
 
@@ -449,14 +492,15 @@ export function setTaskStatus(state: CompanyState, ctx: Ctx, id: string, status:
     const open = openDependencies(state, t);
     if (open.length) throw new DomainError("dependencies_open", { ids: open.map((d) => d.id).join(", ") });
   }
-  if (status === "completed" && t.protectedAction && !hasApproved(state, { taskId: id }, t.protectedAction)) {
+  if (status === "completed" && t.protectedAction && !coveringApproval(state, t)) {
     throw new DomainError("approval_required");
   }
 
   let s = state;
   if (status === "awaiting_ceo_approval") {
     if (!t.protectedAction) throw new DomainError("not_protected");
-    const pending = state.approvals.some((a) => a.taskId === id && a.status === "pending");
+    // The task's own request: another pending approval linked to it (a different action) doesn't count.
+    const pending = state.approvals.some((a) => a.taskId === id && a.action === t.protectedAction && a.status === "pending");
     if (!pending) {
       [s] = createApprovalInternal(s, ctx, {
         action: t.protectedAction,
@@ -548,6 +592,9 @@ function createApprovalInternal(state: CompanyState, ctx: Ctx, input: ApprovalIn
 
 export function createApproval(state: CompanyState, ctx: Ctx, input: ApprovalInput): [CompanyState, string] {
   require(ctx, "write");
+  if (input.taskId && state.approvals.some((a) => a.taskId === input.taskId && a.action === input.action && a.status === "pending")) {
+    throw new DomainError("approval_pending", { id: input.taskId });
+  }
   assertEmployee(state, input.requestedBy === "ceo" || input.requestedBy === "system" ? null : input.requestedBy);
   const [s, id] = createApprovalInternal(state, ctx, input);
   return [bump(s), id];
@@ -567,6 +614,10 @@ export function decideApproval(
   if (!cooDecides) require(ctx, "decide_approvals");
   if (a.status !== "pending") throw new DomainError("already_decided");
   if (decision === "rejected") nonEmpty(note, "decision_note");
+  // Separation of duties: only the CEO may decide a request they made; everyone else needs a second person.
+  if (ctx.actor !== "ceo" && ctx.actor === a.requestedBy) throw new DomainError("self_approval");
+  // The COO's decisions are reported to the CEO, so each carries its reasoning/evidence.
+  if (ctx.actor === COO_ID) nonEmpty(note, "decision_note");
 
   let s: CompanyState = {
     ...state,
@@ -577,7 +628,8 @@ export function decideApproval(
   // Effects on the linked task: approval completes it; rejection sends it back for changes.
   if (a.taskId) {
     const t = s.tasks.find((x) => x.id === a.taskId);
-    if (t && t.status === "awaiting_ceo_approval") {
+    // Only the approval of the task's own protected action moves it (another approval linked to it can't).
+    if (t && t.status === "awaiting_ceo_approval" && a.action === t.protectedAction) {
       const to: TaskStatus = decision === "approved" ? "completed" : "changes_requested";
       const next: Task = {
         ...t,
@@ -595,9 +647,9 @@ export function decideApproval(
   // Effects on the linked project (release approvals).
   if (a.projectId && !a.taskId) {
     const p = s.projects.find((x) => x.id === a.projectId);
-    if (p && p.status === "awaiting_ceo_approval") {
+    if (p && p.status === "awaiting_ceo_approval" && p.releaseApprovalId === a.id) {
       const to: ProjectStatus = decision === "approved" ? "ready_for_delivery" : "review";
-      s = { ...s, projects: replace(s.projects, { ...p, status: to, updatedAt: ctx.now }) };
+      s = { ...s, projects: replace(s.projects, { ...p, status: to, releaseApprovalId: decision === "approved" ? a.id : null, updatedAt: ctx.now }) };
       s = log(s, ctx, "project", "project_status", { id: p.id, name: p.name, from: p.status, to }, { type: "project", id: p.id });
     }
   }
@@ -884,6 +936,7 @@ export function updateInstructions(state: CompanyState, ctx: Ctx, id: EmployeeId
   const emp = state.employees.find((e) => e.id === id);
   if (!emp) throw new DomainError("unknown_employee", { id });
   let s: CompanyState = { ...state, employees: state.employees.map((e) => (e.id === id ? { ...e, systemInstructions } : e)) };
+  s = markEdited(s, "instructions", id);
   s = log(s, ctx, "config", "instructions_changed", { employee: id }, { type: "employee", id });
   return bump(s);
 }
@@ -954,6 +1007,7 @@ export function upsertArticle(
     const existing = state.knowledge.find((k) => k.id === id);
     if (!existing) throw new DomainError("not_found", { id });
     s = { ...s, knowledge: replace(s.knowledge, { ...existing, ...input, id, updatedAt: ctx.now }) };
+    s = markEdited(s, "articles", id);
     s = log(s, ctx, "knowledge", "article_updated", { id, title: input.title }, { type: "knowledge", id });
   } else {
     [id, s] = nextId(s, "KB");
@@ -990,6 +1044,7 @@ export function setDepartmentManager(state: CompanyState, ctx: Ctx, departmentId
   const emp = state.employees.find((e) => e.id === managerId);
   if (!emp || emp.departmentId !== d.id) throw new DomainError("unknown_employee", { id: managerId });
   let s: CompanyState = { ...state, departments: state.departments.map((x) => (x.id === departmentId ? { ...x, managerId } : x)) };
+  s = markEdited(s, "managers", departmentId);
   s = log(s, ctx, "config", "settings_changed", { fields: `${departmentId}.manager` });
   return bump(s);
 }

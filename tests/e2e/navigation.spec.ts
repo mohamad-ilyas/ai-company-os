@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { open, watchErrors } from "./helpers";
 
 // Every route must load directly (hard refresh on GitHub Pages) with a clean console.

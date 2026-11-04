@@ -93,7 +93,7 @@ export function TaskFormDialog({
         }}
       >
         <Field label={t("common.title")} required className="sm:col-span-2">
-          {(id) => <Input id={id} value={f.title} onChange={(e) => set("title", e.target.value)} required data-testid="task-title" />}
+          {(id) => <Input id={id} value={f.title} onChange={(e) => set("title", e.target.value)} required maxLength={500} data-testid="task-title" />}
         </Field>
         <Field label={t("common.description")} className="sm:col-span-2">
           {(id) => <Textarea id={id} value={f.description} onChange={(e) => set("description", e.target.value)} />}

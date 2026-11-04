@@ -27,13 +27,19 @@ import {
 } from "../domain";
 import { APPROVAL_LEVEL, COO_ID, PROJECT_TRANSITIONS, PROTECTED_ACTION_RISK } from "../workflow";
 import type { ActorId, CompanyState, EmployeeId, Project, ProjectStatus, Task, TaskStatus } from "../types";
+import { companyStateSchema } from "../state-schema";
 import type { AgentReport, ReportAction } from "./report-schema";
 import type { ExecutionResult } from "./result-schema";
 
 export interface ApplyOutcome {
   state: CompanyState;
+  /** Actions applied in this run. */
   applied: number;
   warnings: string[];
+  /** Actions skipped because an earlier delivery of the same report already applied them. */
+  alreadyApplied: number;
+  /** Every action of the report has now been applied. */
+  complete: boolean;
 }
 
 const PROJECT_ORDER: ProjectStatus[] = ["planning", "requirements", "design", "development", "testing", "review"];
@@ -329,23 +335,54 @@ export function applyAgentReport(state: CompanyState, now: string, report: Agent
     }
   };
 
-  report.actions.forEach((a, i) => {
-    const before = s;
-    try {
-      apply(a);
-      applied++;
-    } catch (err) {
-      s = before; // an action is all-or-nothing
-      const detail = err instanceof DomainError ? `${err.code}${Object.keys(err.params).length ? ` ${JSON.stringify(err.params)}` : ""}` : err instanceof Error ? err.message : String(err);
-      warnings.push(`#${i + 1} ${a.type}: ${detail}`);
-    }
-  });
+  // Actions already applied from this report (an earlier, partial delivery) are never run twice.
+  const done = new Set(state.appliedReports?.[report.reportId] ?? []);
+  let doneNow: number[] = [];
+  const runAll = (validateEach: boolean) => {
+    s = state;
+    applied = 0;
+    warnings.length = 0;
+    doneNow = [];
+    report.actions.forEach((a, i) => {
+      if (done.has(i)) return;
+      const before = s;
+      try {
+        apply(a);
+        // A record the loader would reject must never be saved (it would quarantine the whole company).
+        if (validateEach && !isValidState(s)) throw new DomainError("invalid_data", {});
+        applied++;
+        doneNow.push(i);
+      } catch (err) {
+        s = before; // an action is all-or-nothing
+        const detail = err instanceof DomainError ? `${err.code}${Object.keys(err.params).length ? ` ${JSON.stringify(err.params)}` : ""}` : err instanceof Error ? err.message : String(err);
+        warnings.push(`#${i + 1} ${a.type}: ${detail}`);
+      }
+    });
+  };
+  runAll(false);
+  if (!isValidState(s)) runAll(true); // rare: find and drop the offending action(s)
 
+  const allDone = [...done, ...doneNow].sort((a, b) => a - b);
+  if (doneNow.length > 0) s = { ...s, appliedReports: remember(s.appliedReports ?? {}, report.reportId, allDone) };
   s = log(s, ctx("system"), "execution", "agent_report_applied", {
     id: report.reportId,
     reportId: report.reportId,
     count: String(applied),
     warnings: String(warnings.length),
   });
-  return { state: s, applied, warnings };
+  return { state: s, applied, warnings, alreadyApplied: done.size, complete: allDone.length === report.actions.length };
+}
+
+const MAX_REMEMBERED_REPORTS = 3000;
+
+function remember(map: Record<string, number[]>, reportId: string, actions: number[]): Record<string, number[]> {
+  const { [reportId]: _previous, ...rest } = map;
+  void _previous;
+  const keys = Object.keys(rest);
+  const kept = keys.length >= MAX_REMEMBERED_REPORTS ? Object.fromEntries(keys.slice(keys.length - MAX_REMEMBERED_REPORTS + 1).map((k) => [k, rest[k]])) : rest;
+  return { ...kept, [reportId]: actions };
+}
+
+function isValidState(s: CompanyState) {
+  return companyStateSchema.safeParse(s).success;
 }

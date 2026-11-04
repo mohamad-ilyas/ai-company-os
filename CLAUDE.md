@@ -1,7 +1,7 @@
 # AI Company OS
 
 Internal operating platform for an AI-powered digital agency. The owner is the
-Founder & CEO. Thirteen senior **AI employees** are defined here as profiles with
+Founder & CEO. Fifteen senior **AI employees** are defined here as profiles with
 individual instructions; they do work only when the CEO runs an assignment in an
 authorized Claude session (Claude Code or claude.ai on the Pro plan).
 
@@ -15,7 +15,8 @@ identity; don't change it.
   If a feature seems to need money, stop and say so.
 - **No backend.** Static Next.js export on GitHub Pages. No API routes, server
   actions, middleware, or `cookies()`.
-- **CEO approval** is required for: production deployment, production DB changes,
+- **CEO approval** is required for: production deployment *of this dashboard* (the
+  `github-pages` environment reviewer), production DB changes (Supabase migrations),
   public releases, client proposals, external communications, contracts,
   spending, subscriptions, billing, sensitive client data, deleting important
   data, irreversible changes. Prepare these; never perform them. Never `git push`
@@ -51,7 +52,7 @@ validated with `npm run result:check -- <file>`.
 ## Layout
 
 ```
-src/data/workforce/     13 employee profiles + departments  ← source of truth
+src/data/workforce/     15 employee profiles + departments  ← source of truth
 src/data/seed.ts        initial company state (real records + flagged samples)
 src/data/knowledge.ts   policies, standards, SOPs, ADRs, prompts
 src/lib/domain.ts       all business rules (pure functions, unit-tested)

@@ -7,8 +7,10 @@ import { parseCompanyState } from "@/lib/state-schema";
 
 const NOW = "2026-11-03T10:00:00.000Z";
 
-function report(actions: unknown[]): AgentReport {
-  const parsed = parseAgentReport({ schema: "aicos.report/v1", reportId: "rpt-12345678", sentAt: NOW, source: "claude_code_web", actions });
+let reportNo = 0;
+/** Each call is a different report (its own reportId), as the team sends them. */
+function report(actions: unknown[], reportId = `rpt-${String(++reportNo).padStart(8, "0")}`): AgentReport {
+  const parsed = parseAgentReport({ schema: "aicos.report/v1", reportId, sentAt: NOW, source: "claude_code_web", actions });
   if (!parsed.ok) throw new Error(parsed.issues.join("\n"));
   return parsed.report;
 }

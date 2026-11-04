@@ -118,6 +118,8 @@ export interface Project {
   extKey?: string | null;
   /** Source repository, when the team publishes the project to GitHub. */
   repoUrl?: string | null;
+  /** The approval request that put the project into "awaiting approval"; only its decision moves the project on. */
+  releaseApprovalId?: string | null;
 }
 
 export const TASK_STATUSES = [
@@ -411,11 +413,21 @@ export interface Settings {
   };
 }
 
+export interface EditedRecords {
+  instructions: EmployeeId[];
+  articles: string[];
+  managers: string[];
+}
+
 export interface CompanyState {
   schema: "aicos.state/v1";
   revision: number;
   /** Version of the built-in workforce last merged into this state (see migrate.ts). */
   workforceVersion?: number;
+  /** Built-in records the CEO changed, so workforce upgrades keep them (see migrate.ts). */
+  edited?: EditedRecords;
+  /** Which actions of each AI team report were applied, keyed by reportId (bounded, oldest dropped). */
+  appliedReports?: Record<string, number[]>;
   counters: Record<string, number>;
   settings: Settings;
   departments: Department[];

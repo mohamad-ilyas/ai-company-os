@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   Activity,
   BarChart3,
@@ -37,12 +37,21 @@ import { cloudConfigured } from "@/lib/cloud/status";
 
 type NavItem = { href: string; key: TKey; icon: typeof Users; badge?: number; badgeTone?: "warning" | "danger" | "info" };
 
+/** What needs the CEO: their pending decisions, blocked tasks, and outputs waiting for review (one rule everywhere). */
+export function useAttention() {
+  const s = useCompany();
+  return {
+    approvals: s.approvals.filter((a) => a.status === "pending" && APPROVAL_LEVEL[a.action] === "ceo").length,
+    urgent: s.approvals.filter((a) => a.status === "pending" && a.urgent).length,
+    blocked: s.tasks.filter((t) => t.status === "blocked").length,
+    reviews: s.executions.filter((e) => e.reviewStatus === "pending").length,
+  };
+}
+
 function useNav(): { group: TKey; items: NavItem[] }[] {
   const s = useCompany();
   const n = s.settings.notifications;
-  const pendingApprovals = s.approvals.filter((a) => a.status === "pending" && APPROVAL_LEVEL[a.action] === "ceo").length;
-  const blocked = s.tasks.filter((t) => t.status === "blocked").length;
-  const reviews = s.executions.filter((e) => e.reviewStatus === "pending").length;
+  const { approvals: pendingApprovals, blocked, reviews } = useAttention();
   return [
     { group: "nav.groupCompany", items: [{ href: "/", key: "nav.overview", icon: LayoutDashboard }] },
     {
@@ -99,7 +108,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <p className="truncate text-xs text-muted">{s.settings.founderTitle}</p>
         </div>
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Main">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label={t("common.mainNav")}>
         {nav.map((g) => (
           <div key={g.group}>
             <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">{t(g.group)}</p>
@@ -114,7 +123,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] transition-colors",
+                        "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] transition-colors pointer-coarse:py-3",
                         active ? "bg-surface text-fg shadow-card ring-1 ring-border" : "text-fg-2 hover:bg-surface-2 hover:text-fg",
                       )}
                     >
@@ -150,18 +159,32 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function Topbar({ onMenu }: { onMenu: () => void }) {
+function Topbar({ onMenu, menuRef }: { onMenu: () => void; menuRef: RefObject<HTMLButtonElement | null> }) {
   const s = useCompany();
   const { t, locale } = useI18n();
   const run = useRun();
+  const attention = useAttention();
+  const n = s.settings.notifications;
+  const waiting = (n.approvals ? attention.approvals : 0) + (n.blockedTasks ? attention.blocked : 0) + (n.reviews ? attention.reviews : 0);
   const theme = s.settings.theme;
   const nextTheme = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : SunMoon;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-bg/85 px-4 backdrop-blur lg:px-8">
-      <button onClick={onMenu} className="rounded-md p-2 text-fg-2 hover:bg-surface-2 lg:hidden" aria-label={t("app.menu")}>
+      <button
+        ref={menuRef}
+        onClick={onMenu}
+        className="relative flex size-9 items-center justify-center rounded-md text-fg-2 hover:bg-surface-2 pointer-coarse:size-11 lg:hidden"
+        aria-label={waiting ? `${t("app.menu")} (${t("app.waitingCount", { count: waiting })})` : t("app.menu")}
+        data-testid="menu-button"
+      >
         <Menu className="size-5" />
+        {waiting > 0 && (
+          <span className="tabular absolute end-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger-mark px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden data-testid="menu-badge">
+            {waiting}
+          </span>
+        )}
       </button>
       <div className="flex-1" />
       <Badge tone={s.settings.role === "ceo" ? "accent" : "warning"} title={t("app.role")}>
@@ -169,8 +192,8 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </Badge>
       <button
         onClick={() => run((st, ctx) => updateSettings(st, ctx, { locale: locale === "ar" ? "en" : "ar" }))}
-        className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg"
-        aria-label={t("app.language")}
+        className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg pointer-coarse:h-11"
+        aria-label={`${t("app.switchTo")} — ${t("app.language")}`}
         data-testid="toggle-language"
       >
         <Languages className="size-4" aria-hidden />
@@ -178,13 +201,13 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </button>
       <button
         onClick={() => run((st, ctx) => updateSettings(st, ctx, { theme: nextTheme }))}
-        className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg"
-        aria-label={`${t("app.theme")}: ${t(`app.${theme}`)}`}
+        className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg pointer-coarse:h-11 pointer-coarse:min-w-11"
+        aria-label={`${t("app.theme")}: ${t(`app.${theme}`)} — ${t("app.themeNext", { next: t(`app.${nextTheme}`) })}`}
         title={`${t("app.theme")}: ${t(`app.${theme}`)}`}
         data-testid="toggle-theme"
       >
         <ThemeIcon className="size-4" aria-hidden />
-        <span className="hidden sm:inline">{t(`app.${theme}`)}</span>
+        <span className="hidden sm:inline">{t("app.theme")}: {t(`app.${theme}`)}</span>
       </button>
     </header>
   );
@@ -193,8 +216,15 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   useEffect(() => {
+    // Focus moves into the menu when it opens and back to the menu button when it closes.
+    if (open) closeRef.current?.focus();
+    else if (wasOpen.current) menuRef.current?.focus();
+    wasOpen.current = open;
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
@@ -213,15 +243,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("app.menu")}>
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 start-0 w-72 max-w-[85vw] border-e border-border bg-bg shadow-xl">
-            <button onClick={() => setOpen(false)} className="absolute end-3 top-5 rounded-md p-1.5 text-fg-2 hover:bg-surface-2" aria-label={t("app.closeMenu")}>
+            <button ref={closeRef} onClick={() => setOpen(false)} className="absolute end-3 top-4 flex size-8 items-center justify-center rounded-md text-fg-2 hover:bg-surface-2 pointer-coarse:size-11" aria-label={t("app.closeMenu")}>
               <X className="size-4" />
             </button>
             <Sidebar onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
-      <div className="lg:ps-64">
-        <Topbar onMenu={() => setOpen(true)} />
+      {/* While the menu is open, the page behind it can't be reached by keyboard or screen reader. */}
+      <div className="lg:ps-64" inert={open}>
+        <Topbar onMenu={() => setOpen(true)} menuRef={menuRef} />
         <main id="main" className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8">
           {children}
         </main>

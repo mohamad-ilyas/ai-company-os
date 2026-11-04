@@ -48,7 +48,7 @@ export default function ExecutionCenterPage() {
       />
       <Notice icon={<Info className="size-4 text-accent" />} className="mb-6">
         <strong className="font-semibold">{t("execution.how")}.</strong> {t("execution.howBody")}{" "}
-        <Link href={routes.article("KB-004")} className="text-accent hover:underline">SOP →</Link>
+        <Link href={routes.article("KB-004")} className="text-accent-text underline underline-offset-2">{t("execution.howToRun")} <span className="flip-rtl inline-block" aria-hidden>→</span></Link>
       </Notice>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

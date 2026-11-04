@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Columns3, List, Plus, Search, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Columns3, List, Plus, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useCompany, useI18n } from "@/lib/store";
 import { Button, Card, EmptyState, Input, PageHeader, Select, tableClass } from "@/components/ui/primitives";
 import { ActorChip, Avatar, PriorityBadge, SampleBadge, TaskStatusBadge } from "@/components/common";
@@ -51,7 +51,9 @@ export default function TasksPage() {
   const { t, l, date } = useI18n();
   const router = useRouter();
   useDocumentTitle(t("tasks.title"));
-  const [view, setView] = useState<"board" | "list">("board");
+  // Touch phones start in the list: board columns run off a narrow screen.
+  const [view, setView] = useState<"board" | "list">(() => (matchMedia("(pointer: coarse) and (max-width: 767px)").matches ? "list" : "board"));
+  const [showFilters, setShowFilters] = useState(false);
   const [q, setQ] = useState("");
   const [project, setProject] = useState("");
   const [assignee, setAssignee] = useState<EmployeeId | "">("");
@@ -103,6 +105,11 @@ export default function TasksPage() {
           <Search className="pointer-events-none absolute start-3 top-2.5 size-4 text-muted" aria-hidden />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.search")} aria-label={t("common.search")} className="ps-9" data-testid="task-search" />
         </div>
+        <Button className="md:hidden" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters} aria-controls="task-filters" data-testid="toggle-filters">
+          <SlidersHorizontal className="size-4" />
+          {t("tasks.filters", { count: [project, assignee, priority, status].filter(Boolean).length })}
+        </Button>
+        <div id="task-filters" className={showFilters ? "contents" : "hidden md:contents"}>
         <Select value={project} onChange={(e) => setProject(e.target.value)} aria-label={t("common.project")}>
           <option value="">{t("common.project")}: {t("common.all")}</option>
           {s.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -119,6 +126,7 @@ export default function TasksPage() {
           <option value="">{t("common.status")}: {t("common.all")}</option>
           {TASK_STATUSES.map((x) => <option key={x} value={x}>{t(`taskStatus.${x}`)}</option>)}
         </Select>
+        </div>
       </div>
 
       {rows.length === 0 ? (

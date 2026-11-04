@@ -149,8 +149,8 @@ function ApprovalCard({ a }: { a: Approval }) {
           </div>
         </div>
         <dl className="grid gap-4 text-sm md:grid-cols-2">
-          <div><dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("common.reason")}</dt><dd className="mt-0.5 whitespace-pre-wrap text-fg">{a.reason}</dd></div>
-          <div><dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("common.impact")}</dt><dd className="mt-0.5 whitespace-pre-wrap text-fg">{a.impact || "—"}</dd></div>
+          <div><dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("common.reason")}</dt><dd dir="auto" className="mt-0.5 whitespace-pre-wrap text-start text-fg">{a.reason}</dd></div>
+          <div><dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("common.impact")}</dt><dd dir="auto" className="mt-0.5 whitespace-pre-wrap text-start text-fg">{a.impact || "—"}</dd></div>
           <div><dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("approvals.requestedBy")}</dt><dd className="mt-1"><ActorChip actor={a.requestedBy} size={22} /></dd></div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted">{t("approvals.linked")}</dt>
@@ -175,9 +175,9 @@ function ApprovalCard({ a }: { a: Approval }) {
           </span>
           {a.status === "pending" ? (
             isCeo ? (
-              <div className="flex gap-2">
-                <Button variant="danger" size="sm" onClick={() => decide("rejected")} data-testid={`reject-${a.id}`}><XCircle className="size-4" />{t("approvals.reject")}</Button>
-                <Button variant="success" size="sm" onClick={() => decide("approved")} data-testid={`approve-${a.id}`}><CheckCircle2 className="size-4" />{t("approvals.approve")}</Button>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Button variant="danger" className="flex-1 sm:flex-none" onClick={() => decide("rejected")} data-testid={`reject-${a.id}`}><XCircle className="size-4" />{t("approvals.reject")}</Button>
+                <Button variant="success" className="flex-1 sm:flex-none" onClick={() => decide("approved")} data-testid={`approve-${a.id}`}><CheckCircle2 className="size-4" />{t("approvals.approve")}</Button>
               </div>
             ) : (
               <span className="inline-flex items-center gap-1.5"><Lock className="size-3.5" />{t("approvals.onlyCeo")}</span>

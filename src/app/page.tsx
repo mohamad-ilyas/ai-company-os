@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AlertOctagon, ArrowRight, CircleDollarSign, Clock, FolderKanban, Info, ListTodo, ShieldCheck, Users } from "lucide-react";
 import { useCompany, useI18n, LAST_EXPORT_KEY } from "@/lib/store";
-import { Card, CardBody, CardHeader, Notice, PageHeader, tableClass } from "@/components/ui/primitives";
+import { Badge, Card, CardBody, CardHeader, Notice, PageHeader, tableClass } from "@/components/ui/primitives";
 import { BarList, Meter, SegmentedBar, StatTile, type Segment } from "@/components/ui/charts";
 import { ActivityList, ActorChip, ProjectStatusBadge, RiskBadge, SampleBadge, SLOT_COLOR } from "@/components/common";
 import { countBy, departmentStats, OPEN_TASK, projectProgress, qualityStats, scope } from "@/lib/metrics";
@@ -14,6 +14,7 @@ import { useCloud } from "@/lib/cloud/status";
 import { APPROVAL_LEVEL } from "@/lib/workflow";
 import { Markdown } from "@/components/ui/markdown";
 import { AskCoo } from "@/components/ask-coo";
+import { useAttention } from "@/components/shell/app-shell";
 import type { TaskStatus } from "@/lib/types";
 
 const ACTIVE_PROJECT = ["planning", "requirements", "design", "development", "testing", "review", "awaiting_ceo_approval", "ready_for_delivery"];
@@ -31,6 +32,8 @@ export default function OverviewPage() {
     .sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent));
   const direct = s.messages.filter((m) => m.kind === "direct").slice(-4).reverse();
   const pendingApprovals = scope(approvals, inc).length;
+  const sampleApprovals = approvals.length - pendingApprovals;
+  const attention = useAttention();
   const byStatus = countBy(tasks, (x) => x.status);
   const n = (k: TaskStatus) => byStatus[k] ?? 0;
   const q = qualityStats(s, inc);
@@ -53,6 +56,30 @@ export default function OverviewPage() {
     <>
       <PageHeader title={t("overview.greeting", { name: s.settings.founderName.split(" ")[0] || t("common.ceo") })} subtitle={`${t("overview.title")} · ${date(new Date().toISOString())}`} />
 
+      {/* Phones: what needs the CEO comes first, before the KPI tiles. */}
+      <Card className="mb-6 xl:hidden" data-testid="needs-you">
+        <CardHeader title={t("overview.needsYou")} />
+        <CardBody className="py-1">
+          <ul className="divide-y divide-border">
+            {([
+              [routes.approvals, t("overview.needsApprovals"), attention.approvals, attention.urgent ? t("overview.needsUrgent", { count: attention.urgent }) : null, "warning"],
+              [routes.tasks, t("overview.needsBlocked"), attention.blocked, null, "danger"],
+              [routes.execution, t("overview.needsReviews"), attention.reviews, null, "info"],
+              [routes.communication, t("overview.needsCharlotte"), null, null, "neutral"],
+            ] as const).map(([href, label, count, extra, tone]) => (
+              <li key={href}>
+                <Link href={href} className="flex min-h-11 items-center gap-3 py-2 text-sm text-fg">
+                  <span className="flex-1">{label}</span>
+                  {extra && <Badge tone="danger" dot>{extra}</Badge>}
+                  {count !== null && <Badge tone={count ? tone : "neutral"} className="tabular">{count}</Badge>}
+                  <ArrowRight className="flip-rtl size-4 text-muted" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </CardBody>
+      </Card>
+
       <Notice icon={<Info className="size-4 text-accent" />} className="mb-6">
         {t("overview.honesty")}{" "}
         <strong className="tabular">{t("overview.activeSessions", { count: exes.filter((e) => e.status === "in_session").length })}</strong>
@@ -62,7 +89,7 @@ export default function OverviewPage() {
         <StatTile label={t("overview.employees")} value={s.employees.length} icon={<Users className="size-4" />} href={routes.employees} testId="stat-employees" />
         <StatTile label={t("overview.activeProjects")} value={active.length} icon={<FolderKanban className="size-4" />} />
         <StatTile label={t("overview.completedProjects")} value={projects.filter((p) => p.status === "delivered").length} />
-        <StatTile label={t("overview.pendingApprovals")} value={pendingApprovals} icon={<ShieldCheck className="size-4" />} tone={pendingApprovals ? "warning" : undefined} testId="stat-approvals" />
+        <StatTile label={t("overview.pendingApprovals")} value={pendingApprovals} hint={sampleApprovals > 0 ? t("overview.plusSample", { count: sampleApprovals }) : undefined} icon={<ShieldCheck className="size-4" />} tone={pendingApprovals ? "warning" : undefined} testId="stat-approvals" />
         <StatTile label={t("overview.pendingTasks")} value={tasks.filter((x) => OPEN_TASK.includes(x.status)).length} icon={<ListTodo className="size-4" />} />
         <StatTile label={t("overview.inProgress")} value={n("in_progress")} icon={<Clock className="size-4" />} />
         <StatTile label={t("overview.blocked")} value={n("blocked")} icon={<AlertOctagon className="size-4" />} tone={n("blocked") ? "danger" : undefined} />
@@ -73,14 +100,14 @@ export default function OverviewPage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card>
-            <CardHeader title={t("overview.tasksByStatus")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.tasks}>{t("common.viewAll")}</Link>} />
+            <CardHeader title={t("overview.tasksByStatus")} actions={<Link className="text-[13px] text-accent-text hover:underline" href={routes.tasks}>{t("common.viewAll")}</Link>} />
             <CardBody>
               <SegmentedBar segments={segments} ariaLabel={t("overview.tasksByStatus")} />
             </CardBody>
           </Card>
 
           <Card>
-            <CardHeader title={t("overview.approvalsQueue")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.approvals}>{t("nav.approvals")}</Link>} />
+            <CardHeader title={t("overview.approvalsQueue")} actions={<Link className="text-[13px] text-accent-text hover:underline" href={routes.approvals}>{t("nav.approvals")}</Link>} />
             <CardBody className="py-2">
               {approvals.length === 0 ? (
                 <p className="py-3 text-sm text-muted">{t("overview.noApprovals")}</p>
@@ -91,7 +118,7 @@ export default function OverviewPage() {
                       <ShieldCheck className="size-4 shrink-0 text-warning" aria-hidden />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-fg">
-                          {a.urgent && <span className="me-1.5 rounded bg-danger-mark/15 px-1.5 py-0.5 text-[11px] font-semibold text-danger">URGENT</span>}
+                          {a.urgent && <Badge tone="danger" dot className="me-1.5">{t("approvals.urgent")}</Badge>}
                           {a.title} <SampleBadge show={a.sample} />
                         </p>
                         <p className="text-xs text-muted">
@@ -175,7 +202,7 @@ export default function OverviewPage() {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader title={t("overview.directLine")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.communication}>{t("overview.openDirectLine")}</Link>} />
+            <CardHeader title={t("overview.directLine")} actions={<Link className="text-[13px] text-accent-text hover:underline" href={routes.communication}>{t("overview.openDirectLine")}</Link>} />
             <CardBody className="space-y-3">
               {direct.length === 0 ? (
                 <p className="text-sm text-muted">{t("overview.directLineEmpty")}</p>
@@ -209,7 +236,7 @@ export default function OverviewPage() {
           </Card>
 
           <Card>
-            <CardHeader title={t("overview.execution")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.execution}>{t("nav.execution")}</Link>} />
+            <CardHeader title={t("overview.execution")} actions={<Link className="text-[13px] text-accent-text hover:underline" href={routes.execution}>{t("nav.execution")}</Link>} />
             <CardBody>
               <dl className="grid grid-cols-2 gap-3">
                 {[
@@ -268,7 +295,7 @@ export default function OverviewPage() {
           </Card>
 
           <Card>
-            <CardHeader title={t("overview.recentActivity")} actions={<Link className="text-[13px] text-accent hover:underline" href={routes.activity}>{t("common.viewAll")}</Link>} />
+            <CardHeader title={t("overview.recentActivity")} actions={<Link className="text-[13px] text-accent-text hover:underline" href={routes.activity}>{t("common.viewAll")}</Link>} />
             <CardBody className="py-1">
               <ActivityList events={s.activity.slice(0, 7)} compact />
             </CardBody>

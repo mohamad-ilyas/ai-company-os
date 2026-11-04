@@ -54,7 +54,7 @@ export function Dialog({
               <h2 className="text-base font-semibold text-fg">{title}</h2>
               {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
             </div>
-            <button onClick={onClose} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-fg" aria-label="Close">
+            <button onClick={onClose} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-fg" aria-label={typeof document !== "undefined" && document.documentElement.lang === "ar" ? "إغلاق" : "Close"}>
               <X className="size-4" />
             </button>
           </header>

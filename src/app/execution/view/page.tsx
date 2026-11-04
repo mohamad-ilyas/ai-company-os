@@ -92,8 +92,8 @@ function FollowUpDialog({ exe, mode, onClose }: { exe: Execution; mode: "revisio
   const [to, setTo] = useState<EmployeeId>(mode === "revision" ? exe.employeeId : exe.handoffSuggestion?.to ?? exe.employeeId);
   const [instructions, setInstructions] = useState(
     mode === "revision"
-      ? `Revise ${exe.id} based on this review:\n\n${exe.reviewNotes}`
-      : `Continue from ${exe.id} (“${exe.title}”). Its approved output is attached as upstream context.\n\n${exe.handoffSuggestion?.note ?? ""}`.trim(),
+      ? t("execution.prefillRevise", { id: exe.id, notes: exe.reviewNotes })
+      : t("execution.prefillContinue", { id: exe.id, title: exe.title, note: exe.handoffSuggestion?.note ?? "" }).trim(),
   );
   return (
     <Dialog
@@ -156,7 +156,7 @@ function ExecutionView() {
   const packet = buildPacket(s, exe);
   const children = s.executions.filter((e) => e.parentId === exe.id);
   const duration =
-    exe.startedAt && exe.endedAt ? `${((Date.parse(exe.endedAt) - Date.parse(exe.startedAt)) / 3_600_000).toFixed(1)} h` : t("execution.notReported");
+    exe.startedAt && exe.endedAt ? `${((Date.parse(exe.endedAt) - Date.parse(exe.startedAt)) / 3_600_000).toFixed(1)}` : null;
 
   return (
     <>
@@ -180,7 +180,7 @@ function ExecutionView() {
           <Button
             variant="ghost"
             onClick={async () => {
-              const r = await confirm({ title: t("execution.cancel"), body: t("execution.cancelConfirm", { id: exe.id }), confirmLabel: t("common.confirm"), cancelLabel: t("common.close"), danger: true });
+              const r = await confirm({ title: t("execution.cancel"), body: t("execution.cancelConfirm", { id: exe.id }), confirmLabel: t("execution.cancelAssignment"), cancelLabel: t("execution.keepAssignment"), danger: true });
               if (r.ok) run((st, ctx) => cancelExecution(st, ctx, exe.id));
             }}
           >
@@ -284,10 +284,11 @@ function ExecutionView() {
                 </div>
               )}
               {exe.output ? <Markdown source={exe.output} /> : <p className="text-sm text-muted" data-testid="no-output">{t("execution.noOutput")}</p>}
-              {exe.openQuestions.length > 0 && (
+              {/* Shown separately only if the output doesn't already have its own "Open questions" section. */}
+              {exe.openQuestions.length > 0 && !/^#{1,4}\s*open questions/im.test(exe.output) && (
                 <div>
                   <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t("execution.openQuestions")}</h3>
-                  <ul className="list-disc space-y-1 ps-5 text-sm text-fg">{exe.openQuestions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+                  <ul dir="auto" className="list-disc space-y-1 ps-5 text-start text-sm text-fg">{exe.openQuestions.map((q, i) => <li key={i}>{q}</li>)}</ul>
                 </div>
               )}
               {exe.errors.length > 0 && (
@@ -371,7 +372,7 @@ function ExecutionView() {
               )}
               <dl className="grid grid-cols-2 gap-3 border-t border-border pt-4">
                 <div><dt className="text-xs text-muted">{t("common.created")}</dt><dd className="text-[13px] text-fg">{dateTime(exe.createdAt)}</dd></div>
-                <div><dt className="text-xs text-muted">{t("execution.duration")}</dt><dd className="text-[13px] text-fg">{duration}</dd></div>
+                <div><dt className="text-xs text-muted">{t("execution.duration")}</dt><dd className="text-[13px] text-fg">{duration ? t("employees.hours", { n: duration }) : t("execution.notReported")}</dd></div>
                 <div><dt className="text-xs text-muted">{t("execution.startTime")}</dt><dd className="text-[13px] text-fg">{exe.startedAt ? dateTime(exe.startedAt) : t("execution.notReported")}</dd></div>
                 <div><dt className="text-xs text-muted">{t("execution.endTime")}</dt><dd className="text-[13px] text-fg">{exe.endedAt ? dateTime(exe.endedAt) : t("execution.notReported")}</dd></div>
               </dl>

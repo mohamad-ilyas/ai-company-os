@@ -295,6 +295,8 @@ export function createSeed(): CompanyState {
     schema: "aicos.state/v1",
     revision: 0,
     workforceVersion: WORKFORCE_VERSION,
+    edited: { instructions: [], articles: [], managers: [] },
+    appliedReports: {},
     counters: { PRJ: 2, TSK: 14, EXE: 1, APR: 2, MSG: 5, DLV: 2, KB: KNOWLEDGE.length, ACT: 6, CMT: 1, MS: 5, RSK: 3 },
     settings: {
       companyName: "AI Company OS",

@@ -79,6 +79,7 @@ const project = z.object({
   sample: z.boolean(),
   extKey: z.string().max(100).nullable().optional(),
   repoUrl: z.string().max(500).nullable().optional(),
+  releaseApprovalId: id.nullable().optional(),
 });
 
 const history = z.object({ at: z.string(), actor, key: z.string(), params: z.record(z.string(), z.string()).optional() });
@@ -160,6 +161,8 @@ export const companyStateSchema = z.object({
   schema: z.literal("aicos.state/v1"),
   revision: z.number().int().nonnegative(),
   workforceVersion: z.number().int().nonnegative().optional(),
+  edited: z.object({ instructions: z.array(empId), articles: z.array(id), managers: z.array(z.string().max(64)) }).optional(),
+  appliedReports: z.record(z.string().max(100), z.array(z.number().int().nonnegative())).optional(),
   counters: z.record(z.string(), z.number().int().nonnegative()),
   settings: z.object({
     companyName: z.string().max(200),
@@ -244,4 +247,39 @@ export function parseCompanyState(raw: unknown): StateParse {
     return { ok: false, issues: parsed.error.issues.slice(0, 20).map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`) };
   }
   return { ok: true, state: parsed.data as CompanyState };
+}
+
+/**
+ * Like parseCompanyState, but data this app saved is never set aside just because one text
+ * outgrew a limit (an older version allowed it, or a limit was tightened): over-long text is
+ * shortened to the limit and reported in `repaired`. Anything else invalid still fails.
+ */
+export function parseOrRepairCompanyState(raw: unknown): StateParse & { repaired: string[] } {
+  const first = parseCompanyState(raw);
+  if (first.ok) return { ...first, repaired: [] };
+  let data: unknown;
+  try {
+    data = structuredClone(raw);
+  } catch {
+    return { ...first, repaired: [] };
+  }
+  const repaired: string[] = [];
+  for (let round = 0; round < 5; round++) {
+    const parsed = companyStateSchema.safeParse(data);
+    if (parsed.success) return { ok: true, state: parsed.data as CompanyState, repaired };
+    const fixable = parsed.error.issues.filter((i) => i.code === "too_big" && i.origin === "string");
+    if (fixable.length === 0 || fixable.length < parsed.error.issues.length) break;
+    for (const issue of fixable) {
+      const path = issue.path as (string | number)[];
+      let parent = data as Record<string | number, unknown>;
+      for (const key of path.slice(0, -1)) parent = parent[key] as Record<string | number, unknown>;
+      const last = path[path.length - 1];
+      const value = parent[last];
+      if (typeof value === "string") {
+        parent[last] = value.slice(0, Number((issue as { maximum: number | bigint }).maximum));
+        repaired.push(path.join("."));
+      }
+    }
+  }
+  return { ...parseCompanyState(raw), repaired: [] };
 }

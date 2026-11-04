@@ -87,9 +87,9 @@ Every request records: action, requester, reason, impact, risk, supporting files
    claude "/run-assignment ~/Downloads/EXE-0001.assignment.json"
    \`\`\`
    Claude Code loads the employee's subagent from \`.claude/agents/<slug>.md\`, does the work, and writes \`company/outbox/EXE-0001.result.json\`.
-4. Click **Mark as started** in the dashboard if you want the task to show *In progress* while it runs.
-5. When it finishes, click **Import result** and choose the result file (or paste its contents).
-6. Review the output: **Approve** or **Request changes**. Approving completes the task (or sends it for CEO approval if it is protected).
+4. Click **Mark as started** in the dashboard if you want the assignment to show *Started in Claude* while it runs.
+5. When it finishes, go to **4 · Import the result** → **Choose result file** (or paste the JSON), then **Validate and import**.
+6. Review the output: **Approve** or **Request changes**. Approving completes the task (or, if it is protected, sends it for approval — Charlotte's or yours, depending on the action).
 
 Notes
 - This uses your Claude Pro subscription through Claude Code. No API key is used and nothing runs when your Mac is off.
@@ -107,7 +107,7 @@ Notes
 1. Open the assignment in the Execution Center and click **Copy chat prompt**.
 2. Paste it into a new conversation on claude.ai (your Pro plan).
 3. Claude answers with the deliverable and ends with a \`\`\`json block.
-4. Copy the whole reply (or just the JSON block) and use **Import result → Paste**.
+4. Copy the whole reply (or just the JSON block), paste it under **4 · Import the result**, then **Validate and import**.
 5. Review and approve or request changes.`,
   },
   {
@@ -177,7 +177,7 @@ Notes
 - **Low** — cosmetic or minor.
 
 ## Release gate (default)
-No open critical/high defects · regression suite green · independent review recommendation is *Go* or *Go with conditions* · CEO approval recorded.
+No open critical/high defects · regression suite green · independent review recommendation is *Go* or *Go with conditions* · release decision recorded (Charlotte, COO).
 
 ## Bug report must include
 Title · severity · steps · expected · actual · environment (browser, OS, language, theme) · evidence.
@@ -310,9 +310,13 @@ Option 1 now. The data layer is isolated behind one store module so option 2 can
 
 **Back up**: Settings → Data → **Export JSON**. Do this weekly and before clearing browser data. Store the file somewhere private (not in the public repository).
 
-**Restore / move to another device**: Settings → Data → **Import JSON**. The file is validated before anything is replaced, and the current data is kept as an automatic backup in the browser until the next import.
+**Restore / move to another device**: Settings → Data → **Import JSON**. The file is validated before anything is replaced.
 
-**Reset**: Settings → Data → **Reset to seed data** (requires confirmation). Export first.
+**Automatic backups**: before an import, a reset, a restore, or a sync that replaces this device's data, the dashboard keeps a copy (Settings → Data → *Backups on this device*, the last 5). Restore any of them there — the data it replaces is backed up too.
+
+**Reset**: Settings → Data → *Danger zone* → **Reset to seed data** (requires confirmation; a backup is taken first). While signed in to cloud sync, the reset reaches your other devices too.
+
+**If the dashboard ever crashes**, the error screen offers **Download my data** (everything this browser holds, unprocessed) — keep that file and import it, or send it to Charlotte.
 
 Clearing site data in the browser deletes everything that has not been exported.
 
@@ -345,7 +349,7 @@ The team works stage by stage and reports each one. In the dashboard you see the
 The result appears in the Execution Center for you to approve or send back.
 
 ## Writing work without code (any Claude chat)
-Execution Center → New assignment → *Claude chat* → *Copy chat prompt* → paste in the Claude app → paste the reply back into *Import the result*.
+Execution Center → New assignment → *Claude chat* → *Copy chat prompt* → paste in the Claude app → paste the reply back under **4 · Import the result** → **Validate and import**.
 
 ## What still needs you
 Only CEO-level decisions, which Charlotte (COO) brings you — marked urgent when they block work: spending (e.g. Apple $99/yr, Google Play $25), contracts, anything sent to a client, and deleting company data. Merges, deployments, and releases are Charlotte's decision.`,
@@ -390,7 +394,7 @@ Mirror the company state to one private row per user in Supabase (free tier):
 
 ## How it works
 - Each employee has a **living playbook** at \`playbooks/<slug>.md\` in \`agency-projects\`: current best practices, checklists, and "what's new" with dated sources. They read it before every assignment.
-- **Learning sessions** (\`/learn\`) research the resources below and recent developments, then update the playbooks and publish a dated learning note here (category *Learning*). A weekly scheduled session rotates through the team.
+- **Learning sessions** (\`/learn\`) research the resources below and recent developments, then update the playbooks and publish a dated learning note here (category *Learning*). A scheduled Claude routine runs it every Monday at 06:00 (Hebron time), rotating through the team; you can also run it any time.
 - Lessons from real projects (review findings, bugs that escaped) are added to the playbook of the role that can prevent them next time.
 
 ## Resources by role

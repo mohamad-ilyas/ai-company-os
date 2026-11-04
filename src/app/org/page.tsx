@@ -27,12 +27,12 @@ function PersonNode({ emp, lead, note }: { emp: Employee; lead?: boolean; note?:
         <Avatar actor={emp.id} size={34} />
         <div className="min-w-0">
           <p className="truncate text-[13.5px] font-semibold text-fg group-hover:underline">{l(emp.name)}</p>
-          <p className="line-clamp-2 text-xs leading-snug text-fg-2">{l(emp.title)}</p>
+          <p className="line-clamp-2 text-xs leading-snug text-fg-2" title={l(emp.title)}>{l(emp.title)}</p>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {lead && <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-fg-2">{t("org.lead")}</span>}
-        <WorkStateBadge employee={emp} />
+        <WorkStateBadge employee={emp} hideIdle />
       </div>
       {note && <p className="mt-1.5 text-[11px] text-muted">{note}</p>}
     </Link>

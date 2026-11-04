@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { open, watchErrors } from "./helpers";
 
 test("switches to Arabic RTL and back, and the choice survives a reload", async ({ page }) => {
@@ -8,13 +8,14 @@ test("switches to Arabic RTL and back, and the choice survives a reload", async 
   await page.getByTestId("toggle-language").click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
-  await expect(page.getByRole("navigation", { name: "Main" })).toContainText("مركز الموافقات");
+  // Screen-reader labels are translated too.
+  await expect(page.getByRole("navigation", { name: "التنقل الرئيسي" })).toContainText("مركز الموافقات");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("مرحبًا بعودتك");
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await open(page, "/tasks/view/?id=TSK-0006");
-  await expect(page.getByText("بانتظار موافقة الرئيس التنفيذي").first()).toBeVisible();
+  await expect(page.getByText("بانتظار الموافقة").first()).toBeVisible();
 
   await page.getByTestId("toggle-language").click();
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");

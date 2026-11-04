@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import { confirmDialog, open, watchErrors } from "./helpers";
 
 async function createProject(page: Page, name: string) {
@@ -147,7 +148,7 @@ test("CEO approval unlocks the protected task and its dependents", async ({ page
   await page.getByTestId("move-in_progress").click();
   await page.getByTestId("move-under_review").click();
   await page.getByTestId("move-completed").click();
-  await expect(page.getByTestId("toast-error")).toContainText("approved CEO approval");
+  await expect(page.getByTestId("toast-error")).toContainText("needs an approved request in the Approval Center");
 });
 
 test("rejecting requires a note", async ({ page }) => {
@@ -187,5 +188,5 @@ test("dependencies block starting work", async ({ page }) => {
   await open(page, "/tasks/view/?id=TSK-0007");
   await page.getByTestId("move-assigned").click();
   await page.getByTestId("move-in_progress").click();
-  await expect(page.getByTestId("toast-error")).toContainText("Waiting on dependencies: TSK-0006");
+  await expect(page.getByTestId("toast-error")).toContainText("Complete these tasks first: TSK-0006");
 });

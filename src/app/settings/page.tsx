@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Lock, RotateCcw, Trash2, Upload } from "lucide-react";
-import { BACKUP_KEY, LAST_EXPORT_KEY, STORAGE_KEY, replaceState, restoreBackup, useCompany, useI18n, useRun } from "@/lib/store";
+import { LAST_EXPORT_KEY, STORAGE_KEY, replaceState, restoreBackup, useCompany, useI18n, useRun } from "@/lib/store";
+import { deleteBackup, listBackups, type BackupInfo } from "@/lib/backups";
 import { Button, Card, CardBody, CardHeader, Checkbox, Field, Input, Notice, PageHeader, Select } from "@/components/ui/primitives";
 import { useConfirm } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -11,11 +12,14 @@ import { ActorChip, downloadFile } from "@/components/common";
 import { CloudSection } from "@/components/cloud-section";
 import { AgentChannel } from "@/components/agent-channel";
 import { can, clearSampleData, setAvailability, setDepartmentManager, setRole, updateSettings } from "@/lib/domain";
-import { parseCompanyState } from "@/lib/state-schema";
+import { parseOrRepairCompanyState } from "@/lib/state-schema";
 import { createSeed } from "@/data/seed";
 import { routes } from "@/lib/routes";
 import { useDocumentTitle } from "@/components/shell/use-title";
 import { PRIORITIES, PROTECTED_ACTIONS, type Availability, type EmployeeId, type Priority, type Role, type Settings } from "@/lib/types";
+
+/** About 70% of the ~5 MB most browsers give a site (Safari on iPhone included). */
+const STORAGE_WARN_BYTES = 3_500_000;
 
 function Section({ id, title, description, children }: { id: string; title: string; description?: ReactNode; children: ReactNode }) {
   return (
@@ -46,7 +50,9 @@ export default function SettingsPage() {
   const [defaults, setDefaults] = useState(s.settings.projectDefaults);
   const save = (patch: Partial<Settings>) => run((st, ctx) => updateSettings(st, ctx, patch), t("common.saved"));
   const storageBytes = typeof window !== "undefined" ? (localStorage.getItem(STORAGE_KEY)?.length ?? 0) * 2 : 0;
-  const hasBackup = typeof window !== "undefined" && !!localStorage.getItem(BACKUP_KEY);
+  const [backups, setBackups] = useState<BackupInfo[]>([]);
+  const refreshBackups = useCallback(() => void listBackups().then(setBackups), []);
+  useEffect(refreshBackups, [refreshBackups, s.revision]);
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/";
   const commit = process.env.NEXT_PUBLIC_COMMIT_SHA;
 
@@ -63,15 +69,15 @@ export default function SettingsPage() {
       toast.error(t("errors.not_json"));
       return;
     }
-    const parsed = parseCompanyState(data);
+    const parsed = parseOrRepairCompanyState(data);
     if (!parsed.ok) {
       toast.error(t("errors.invalid_file", { issues: parsed.issues.slice(0, 3).join("; ") }));
       return;
     }
     const r = await confirm({ title: t("settings.importJson"), body: t("settings.importConfirm"), confirmLabel: t("common.import"), cancelLabel: t("common.cancel"), danger: true });
     if (r.ok) {
-      if (replaceState(parsed.state, "data_imported")) toast.success(t("settings.importDone"));
-      else toast.error(t("app.storageFull"));
+      if (await replaceState(parsed.state, "data_imported")) toast.success(t("settings.importDone"));
+      else toast.error(t("settings.backupFailed"));
     }
   };
 
@@ -82,13 +88,13 @@ export default function SettingsPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-6">
           <Section id="company" title={t("settings.company")}>
-            <Field label={t("settings.companyName")}>{(id) => <Input id={id} disabled={!manage} value={company.companyName} onChange={(e) => setCompany({ ...company, companyName: e.target.value })} />}</Field>
-            <Field label={t("settings.tagline")}>{(id) => <Input id={id} disabled={!manage} value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} />}</Field>
-            <Field label={t("settings.companyEmail")}>{(id) => <Input id={id} disabled={!manage} type="email" dir="ltr" value={company.companyEmail} onChange={(e) => setCompany({ ...company, companyEmail: e.target.value })} />}</Field>
+            <Field label={t("settings.companyName")}>{(id) => <Input id={id} disabled={!manage} maxLength={200} value={company.companyName} onChange={(e) => setCompany({ ...company, companyName: e.target.value })} />}</Field>
+            <Field label={t("settings.tagline")}>{(id) => <Input id={id} disabled={!manage} maxLength={300} value={company.tagline} onChange={(e) => setCompany({ ...company, tagline: e.target.value })} />}</Field>
+            <Field label={t("settings.companyEmail")}>{(id) => <Input id={id} disabled={!manage} type="email" dir="ltr" maxLength={200} value={company.companyEmail} onChange={(e) => setCompany({ ...company, companyEmail: e.target.value })} />}</Field>
             <h3 className="pt-2 text-sm font-semibold text-fg">{t("settings.founder")}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("settings.founderName")}>{(id) => <Input id={id} disabled={!manage} value={company.founderName} onChange={(e) => setCompany({ ...company, founderName: e.target.value })} data-testid="founder-name" />}</Field>
-              <Field label={t("settings.founderTitle")}>{(id) => <Input id={id} disabled={!manage} value={company.founderTitle} onChange={(e) => setCompany({ ...company, founderTitle: e.target.value })} />}</Field>
+              <Field label={t("settings.founderName")}>{(id) => <Input id={id} disabled={!manage} maxLength={200} value={company.founderName} onChange={(e) => setCompany({ ...company, founderName: e.target.value })} data-testid="founder-name" />}</Field>
+              <Field label={t("settings.founderTitle")}>{(id) => <Input id={id} disabled={!manage} maxLength={200} value={company.founderTitle} onChange={(e) => setCompany({ ...company, founderTitle: e.target.value })} />}</Field>
             </div>
             {manage && <div className="flex justify-end"><Button variant="primary" onClick={() => save(company)} data-testid="save-company">{t("common.save")}</Button></div>}
           </Section>
@@ -175,48 +181,92 @@ export default function SettingsPage() {
               <Button variant="primary" onClick={exportJson} data-testid="export-json"><Download className="size-4" />{t("settings.exportJson")}</Button>
               {manage && (
                 <>
-                  <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" data-testid="import-file" onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
+                  <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" tabIndex={-1} aria-label={t("settings.importJson")} data-testid="import-file" onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
                   <Button onClick={() => fileRef.current?.click()}><Upload className="size-4" />{t("settings.importJson")}</Button>
                 </>
               )}
             </div>
             {manage && (
-              <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-                <Button
-                  variant="danger"
-                  data-testid="clear-sample"
-                  onClick={async () => {
-                    const r = await confirm({ title: t("settings.clearSample"), body: t("settings.clearSampleConfirm"), confirmLabel: t("common.delete"), cancelLabel: t("common.cancel"), danger: true });
-                    if (r.ok) run((st, ctx) => clearSampleData(st, ctx), t("common.saved"));
-                  }}
-                >
-                  <Trash2 className="size-4" />{t("settings.clearSample")}
-                </Button>
-                <Button
-                  variant="danger"
-                  data-testid="reset-data"
-                  onClick={async () => {
-                    const r = await confirm({ title: t("settings.reset"), body: t("settings.resetConfirm"), confirmLabel: t("settings.reset"), cancelLabel: t("common.cancel"), danger: true });
-                    if (r.ok) {
-                      const seed = createSeed();
-                      seed.settings = { ...seed.settings, locale: s.settings.locale, theme: s.settings.theme };
-                      replaceState(seed, "data_reset");
-                      toast.success(t("common.saved"));
-                    }
-                  }}
-                >
-                  <RotateCcw className="size-4" />{t("settings.reset")}
-                </Button>
-                {hasBackup && (
+              <div className="space-y-2 border-t border-border pt-4" data-testid="backups">
+                <h3 className="text-sm font-semibold text-fg">{t("settings.backups")}</h3>
+                <p className="text-xs text-muted">{t("settings.backupsHint")}</p>
+                {backups.length === 0 ? (
+                  <p className="text-[13px] text-fg-2" data-testid="no-backups">{t("settings.noBackup")}</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {backups.map((b) => (
+                      <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                        <span className="text-[13px] text-fg">
+                          {t(`backupReason.${b.reason}`)}
+                          {b.at && <span className="tabular ms-2 text-xs text-muted">{dateTime(b.at)}</span>}
+                          <bdi className="tabular ms-2 text-xs text-muted">{Math.max(1, Math.round(b.bytes / 1024))} KB</bdi>
+                        </span>
+                        <span className="flex gap-2">
+                          <Button
+                            size="sm"
+                            data-testid="restore-backup"
+                            onClick={async () => {
+                              const r = await confirm({ title: t("settings.restoreBackup"), body: t("settings.restoreConfirm"), confirmLabel: t("settings.restoreBackup"), cancelLabel: t("common.cancel") });
+                              if (!r.ok) return;
+                              const out = await restoreBackup(b.id);
+                              if (out === "restored") toast.success(t("settings.restored"));
+                              else toast.error(t(out === "invalid" ? "settings.backupInvalid" : "settings.backupFailed"));
+                              refreshBackups();
+                            }}
+                          >
+                            <RotateCcw className="size-4" />{t("settings.restoreBackup")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={t("settings.deleteBackup")}
+                            onClick={async () => {
+                              const r = await confirm({ title: t("settings.deleteBackup"), body: t("settings.deleteBackupConfirm"), confirmLabel: t("common.delete"), cancelLabel: t("common.cancel"), danger: true });
+                              if (r.ok) await deleteBackup(b.id);
+                              refreshBackups();
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {manage && (
+              <div className="space-y-3 rounded-md border border-danger/40 p-3" data-testid="danger-zone">
+                <h3 className="text-sm font-semibold text-danger">{t("settings.dangerZone")}</h3>
+                <p className="text-xs text-fg-2">{t("settings.dangerHint")}</p>
+                <div className="flex flex-wrap gap-2">
                   <Button
+                    variant="danger"
+                    data-testid="clear-sample"
                     onClick={async () => {
-                      const r = await confirm({ title: t("settings.restoreBackup"), body: t("settings.restoreConfirm"), confirmLabel: t("common.confirm"), cancelLabel: t("common.cancel") });
-                      if (r.ok && restoreBackup()) toast.success(t("common.saved"));
+                      const r = await confirm({ title: t("settings.clearSample"), body: t("settings.clearSampleConfirm"), confirmLabel: t("common.delete"), cancelLabel: t("common.cancel"), danger: true });
+                      if (r.ok) run((st, ctx) => clearSampleData(st, ctx), t("settings.sampleCleared"));
                     }}
                   >
-                    {t("settings.restoreBackup")}
+                    <Trash2 className="size-4" />{t("settings.clearSample")}
                   </Button>
-                )}
+                  <Button
+                    variant="danger"
+                    data-testid="reset-data"
+                    onClick={async () => {
+                      const r = await confirm({ title: t("settings.reset"), body: t("settings.resetConfirm"), confirmLabel: t("settings.reset"), cancelLabel: t("common.cancel"), danger: true });
+                      if (r.ok) {
+                        const seed = createSeed();
+                        seed.settings = { ...seed.settings, locale: s.settings.locale, theme: s.settings.theme };
+                        if (await replaceState(seed, "data_reset")) toast.success(t("settings.resetDone"));
+                        else toast.error(t("settings.backupFailed"));
+                        refreshBackups();
+                      }
+                    }}
+                  >
+                    <RotateCcw className="size-4" />{t("settings.reset")}
+                  </Button>
+                </div>
               </div>
             )}
             <Checkbox
@@ -225,7 +275,12 @@ export default function SettingsPage() {
               checked={s.settings.includeSampleInAnalytics}
               onChange={(v) => save({ includeSampleInAnalytics: v })}
             />
-            <p className="tabular text-xs text-muted">{t("settings.storageUsed")}: {(storageBytes / 1024).toFixed(0)} KB · <Link className="text-accent hover:underline" href={routes.article("KB-016")}>SOP</Link></p>
+            <p className="text-xs text-muted">
+              {t("settings.storageUsed")}: <bdi className="tabular">{(storageBytes / 1024).toFixed(0)} KB</bdi>
+              {storageBytes > STORAGE_WARN_BYTES && <span className="ms-1 font-medium text-warning" data-testid="storage-warning">{t("settings.storageNearlyFull")}</span>}
+              {" · "}
+              <Link className="text-accent-text underline underline-offset-2" href={routes.article("KB-016")}>{t("settings.backupGuide")}</Link>
+            </p>
           </Section>
 
           <Section id="employees" title={t("settings.employeeManagement")}>

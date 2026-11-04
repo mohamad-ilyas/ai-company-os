@@ -86,7 +86,7 @@ export function ProjectFormDialog({ open, onClose, project, onSaved }: { open: b
           submit();
         }}
       >
-        <Field label={t("projects.name")} required>{(id) => <Input id={id} value={f.name} onChange={(e) => set("name", e.target.value)} required data-testid="project-name" />}</Field>
+        <Field label={t("projects.name")} required>{(id) => <Input id={id} value={f.name} onChange={(e) => set("name", e.target.value)} required maxLength={300} data-testid="project-name" />}</Field>
         <Field label={t("common.client")} required>{(id) => <Input id={id} value={f.client} onChange={(e) => set("client", e.target.value)} required data-testid="project-client" />}</Field>
         <Field label={t("common.description")} className="sm:col-span-2">{(id) => <Textarea id={id} value={f.description} onChange={(e) => set("description", e.target.value)} />}</Field>
         <Field label={t("projects.businessRequirements")}>{(id) => <Textarea id={id} value={f.businessRequirements} onChange={(e) => set("businessRequirements", e.target.value)} />}</Field>

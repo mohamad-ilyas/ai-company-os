@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/dialog";
 import { StoreProvider } from "@/lib/store";
 import { AppShell } from "./app-shell";
+import { ErrorBoundary } from "./error-boundary";
 
 function Splash() {
   return (
@@ -19,12 +20,14 @@ function Splash() {
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ToastProvider>
-      <StoreProvider fallback={<Splash />}>
-        <ConfirmProvider>
-          <AppShell>{children}</AppShell>
-        </ConfirmProvider>
-      </StoreProvider>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <StoreProvider fallback={<Splash />}>
+          <ConfirmProvider>
+            <AppShell>{children}</AppShell>
+          </ConfirmProvider>
+        </StoreProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

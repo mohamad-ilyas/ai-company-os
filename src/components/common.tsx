@@ -10,6 +10,7 @@ import { routes, refRoute } from "@/lib/routes";
 import { tDynamic } from "@/lib/i18n";
 import { employeeWorkState, type WorkState } from "@/lib/metrics";
 import { cn } from "@/lib/cn";
+import { safeLink } from "@/lib/safe-url";
 import type {
   ActivityEvent,
   ActorId,
@@ -55,7 +56,8 @@ export function Avatar({ actor, size = 36 }: { actor: ActorId; size?: number }) 
         className="flex size-full items-center justify-center rounded-full font-semibold"
         style={{
           background: `color-mix(in oklab, ${color} 16%, var(--surface))`,
-          color: `color-mix(in oklab, ${color} 70%, var(--fg))`,
+          // Half text colour: keeps initials at 4.5:1+ even for the yellow department (slot 4) in light mode.
+          color: `color-mix(in oklab, ${color} 50%, var(--fg))`,
           border: `1px solid color-mix(in oklab, ${color} 30%, transparent)`,
           fontSize: Math.max(10, size * 0.36),
         }}
@@ -161,10 +163,11 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
   const { t } = useI18n();
   return <Badge tone={PRIORITY_TONE[priority]}>{t(`priority.${priority}`)}</Badge>;
 }
-export function WorkStateBadge({ employee }: { employee: Employee }) {
+export function WorkStateBadge({ employee, hideIdle = false }: { employee: Employee; hideIdle?: boolean }) {
   const s = useCompany();
   const { t } = useI18n();
   const ws = employeeWorkState(s, employee);
+  if (hideIdle && ws === "idle") return null;
   return <Badge tone={WORK_TONE[ws]} dot>{t(`workState.${ws}`)}</Badge>;
 }
 export function SampleBadge({ show = true }: { show?: boolean }) {
@@ -284,16 +287,17 @@ export function downloadFile(filename: string, content: string, type = "applicat
 /** Renders a link reference: internal paths via the router (base-path aware), external URLs in a new tab. */
 export function RefLink({ link }: { link: LinkRef }) {
   const url = link.url.trim();
-  if (url.startsWith("/")) {
+  const safe = safeLink(url);
+  if (safe?.kind === "internal") {
     return (
-      <Link href={url} className="text-accent hover:underline">
+      <Link href={safe.href} className="text-accent-text hover:underline">
         {link.label || url}
       </Link>
     );
   }
-  if (/^https?:\/\//i.test(url)) {
+  if (safe && /^https?:/i.test(safe.href)) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
+      <a href={safe.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-text hover:underline">
         {link.label || url}
         <ExternalLink className="size-3" aria-hidden />
       </a>

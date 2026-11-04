@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { ArrowLeft, BookOpen, Download, ExternalLink, GraduationCap, Pencil, PlayCircle } from "lucide-react";
 import { useCompany, useI18n, useRun } from "@/lib/store";
+import { safeLink } from "@/lib/safe-url";
 import { Badge, BulletList, Button, Card, CardBody, CardHeader, Chips, EmptyState, Notice, Select, Textarea, tableClass } from "@/components/ui/primitives";
 import { Dialog } from "@/components/ui/dialog";
 import { Tabs } from "@/components/ui/tabs";
@@ -114,7 +115,7 @@ function LearningTab({ e }: { e: Employee }) {
         <CardBody>
           {e.learning?.resources.length ? (
             <ul className="grid gap-2 sm:grid-cols-2" data-testid="learning-resources">
-              {e.learning.resources.map((r) => (
+              {e.learning.resources.filter((r) => safeLink(r.url)?.kind === "external").map((r) => (
                 <li key={r.url}>
                   <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-[13px] text-fg transition-colors hover:border-border-strong hover:bg-surface-2">
                     <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden />

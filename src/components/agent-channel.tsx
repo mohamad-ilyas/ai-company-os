@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { applyReportToStore, useI18n } from "@/lib/store";
+import { applyReportToStore, describeReportResult, useI18n } from "@/lib/store";
 import { cloudConfigured, loadSync, useCloud } from "@/lib/cloud/status";
 import type { InboxReport } from "@/lib/cloud/sync";
 import { Badge, Button, Card, CardBody, CardHeader, Notice, Textarea, type Tone } from "./ui/primitives";
@@ -32,9 +32,9 @@ export function AgentChannel() {
       setInfo(k);
       setReports(r);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(t("cloud.requestFailed", { detail: e instanceof Error ? e.message : String(e) }));
     }
-  }, [signedIn, toast]);
+  }, [signedIn, toast, t]);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -64,7 +64,7 @@ export function AgentChannel() {
       setNewKey(key);
       await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(t("cloud.requestFailed", { detail: e instanceof Error ? e.message : String(e) }));
     }
   };
 
@@ -194,9 +194,10 @@ export function ImportReportDialog({ open, onClose }: { open: boolean; onClose: 
                 return;
               }
               const r = applyReportToStore(data);
-              if (r.outcome === "rejected") toast.error(t("agent.received", { detail: r.detail }));
+              const detail = t("agent.received", { detail: [describeReportResult(t, r), ...r.problems].join("; ") });
+              if (r.outcome === "rejected") toast.error(detail);
               else {
-                toast.success(t("agent.received", { detail: r.detail }));
+                toast.success(detail);
                 setText("");
                 onClose();
               }

@@ -13,13 +13,15 @@ const buttonStyles: Record<ButtonVariant, string> = {
   secondary: "bg-surface text-fg border border-border-strong hover:bg-surface-2",
   ghost: "text-fg-2 hover:bg-surface-2 hover:text-fg border border-transparent",
   danger: "bg-surface text-danger border border-border-strong hover:bg-danger/10",
-  success: "bg-success-mark text-white hover:brightness-95 border border-transparent dark:text-[#0b0b0b]",
+  // White on --success (7.5:1) in light mode; dark text on the brighter mark in dark mode.
+  success: "bg-success text-white hover:brightness-110 border border-transparent dark:bg-success-mark dark:text-[#0b0b0b]",
 };
 
 export function buttonClasses(variant: ButtonVariant = "secondary", size: ButtonSize = "md", className?: string) {
   return cn(
     "inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
-    size === "sm" ? "h-8 px-2.5 text-[13px]" : "h-9 px-3.5 text-sm",
+    // Touch screens get 44px targets; mouse layouts stay dense.
+    size === "sm" ? "h-8 px-2.5 text-[13px] pointer-coarse:h-11" : "h-9 px-3.5 text-sm pointer-coarse:h-11",
     buttonStyles[variant],
     className,
   );
@@ -70,8 +72,8 @@ export type Tone = "neutral" | "info" | "success" | "warning" | "danger" | "acce
 
 const toneStyles: Record<Tone, string> = {
   neutral: "bg-surface-2 text-fg-2 border-border",
-  info: "bg-accent-soft text-accent border-accent/20",
-  accent: "bg-accent-soft text-accent border-accent/20",
+  info: "bg-accent-soft text-accent-text border-accent/20",
+  accent: "bg-accent-soft text-accent-text border-accent/20",
   success: "bg-success-mark/10 text-success border-success-mark/25",
   warning: "bg-warning-mark/15 text-warning border-warning-mark/30",
   serious: "bg-serious-mark/15 text-warning border-serious-mark/30",
@@ -100,10 +102,11 @@ export function Badge({ tone = "neutral", dot, children, className, title }: { t
 // ------------------------------------------------------------------ Form controls
 
 const controlBase =
-  "w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg placeholder:text-muted focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60";
+  // 16px on phones: iOS Safari zooms into any field with smaller text.
+  "w-full rounded-md border border-border-strong bg-surface px-3 text-base sm:text-sm text-fg placeholder:text-muted focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) {
-  return <input ref={ref} className={cn(controlBase, "h-9", className)} {...props} />;
+  return <input ref={ref} className={cn(controlBase, "h-9 pointer-coarse:h-11", className)} {...props} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...props }, ref) {
@@ -112,7 +115,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, children, ...props }, ref) {
   return (
-    <select ref={ref} className={cn(controlBase, "h-9 pe-8", className)} {...props}>
+    <select ref={ref} className={cn(controlBase, "h-9 pe-8 pointer-coarse:h-11", className)} {...props}>
       {children}
     </select>
   );
@@ -202,7 +205,7 @@ export function KeyValue({ items, className }: { items: { k: ReactNode; v: React
       {items.map((it, i) => (
         <div key={i} className="min-w-0">
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">{it.k}</dt>
-          <dd className="mt-0.5 break-words text-sm text-fg">{it.v}</dd>
+          <dd className="bidi mt-0.5 break-words text-sm text-fg">{it.v}</dd>
         </div>
       ))}
     </dl>
@@ -216,7 +219,7 @@ export function BulletList({ items, empty }: { items: string[]; empty?: ReactNod
       {items.map((x, i) => (
         <li key={i} className="flex gap-2">
           <span className="mt-2 size-1 shrink-0 rounded-full bg-muted" aria-hidden />
-          <span className="min-w-0">{x}</span>
+          <span className="bidi min-w-0">{x}</span>
         </li>
       ))}
     </ul>

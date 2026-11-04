@@ -38,7 +38,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
             )}
             <p className="flex-1 text-fg">{t.message}</p>
-            <button onClick={() => dismiss(t.id)} className="text-muted hover:text-fg" aria-label="Dismiss">
+            <button onClick={() => dismiss(t.id)} className="text-muted hover:text-fg" aria-label={typeof document !== "undefined" && document.documentElement.lang === "ar" ? "إغلاق التنبيه" : "Dismiss notification"}>
               <X className="size-4" />
             </button>
           </div>

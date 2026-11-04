@@ -19,6 +19,14 @@ const TONE: Record<CloudStatus, Tone> = {
   error: "danger",
 };
 
+/** Known sync failures get their own explanation; anything else gets the general one. */
+function errorKey(error: string | null) {
+  if (error?.startsWith("storage_full")) return "cloud.errorStorageFull" as const;
+  if (error?.startsWith("backup_failed")) return "cloud.errorBackup" as const;
+  if (error?.startsWith("invalid_remote")) return "cloud.invalidRemote" as const;
+  return "cloud.errorHint" as const;
+}
+
 export function CloudStatusBadge() {
   const { t } = useI18n();
   const cloud = useCloud();
@@ -66,8 +74,8 @@ export function CloudSection() {
             <p className="text-sm text-fg" data-testid="cloud-account">{t("cloud.signedInAs", { email: cloud.email! })}</p>
             {cloud.lastSyncedAt && <p className="text-xs text-muted">{t("cloud.lastSynced")}: {dateTime(cloud.lastSyncedAt)}</p>}
             {(cloud.status === "offline" || cloud.status === "error") && (
-              <Notice tone="warning">
-                {t("cloud.offlineHint")}
+              <Notice tone={cloud.status === "offline" ? "warning" : "danger"} data-testid="cloud-problem">
+                {cloud.status === "offline" ? t("cloud.offlineHint") : t(errorKey(cloud.error))}
                 {cloud.error && <span dir="ltr" className="mt-1 block font-mono text-xs text-fg-2">{cloud.error}</span>}
               </Notice>
             )}
@@ -82,7 +90,7 @@ export function CloudSection() {
                     size="sm"
                     onClick={async () => {
                       const r = await (await loadSync()).linkGitHub();
-                      if (!r.ok) toast.error(r.error ?? t("common.error"));
+                      if (!r.ok) toast.error(t("cloud.requestFailed", { detail: r.error ?? "" }));
                     }}
                   >
                     <Link2 className="size-4" />
@@ -109,7 +117,7 @@ export function CloudSection() {
                   await m.signOut();
                   const seed = createSeed();
                   seed.settings = { ...seed.settings, locale: s.settings.locale, theme: s.settings.theme };
-                  replaceState(seed, "data_reset");
+                  await replaceState(seed, "data_reset");
                 }}
               >
                 {t("cloud.signOutClear")}
@@ -123,7 +131,7 @@ export function CloudSection() {
             data-testid="github-signin"
             onClick={async () => {
               const r = await (await loadSync()).signInWithGitHub();
-              if (!r.ok) toast.error(r.error ?? t("common.error"));
+              if (!r.ok) toast.error(t("cloud.requestFailed", { detail: r.error ?? "" }));
             }}
           >
             <LogIn className="size-4" />
@@ -138,7 +146,7 @@ export function CloudSection() {
               const m = await loadSync();
               const r = await m.sendSignInLink(email);
               setSending(false);
-              if (!r.ok) toast.error(r.error ?? t("common.error"));
+              if (!r.ok) toast.error(t("cloud.requestFailed", { detail: r.error ?? "" }));
             }}
           >
             <label className="block text-[13px] font-medium text-fg">

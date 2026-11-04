@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Building2, FileText, FolderKanban, Gavel, Info, Megaphone, MessageCircle, PhoneCall } from "lucide-react";
 import { useCompany, useI18n } from "@/lib/store";
-import { Card, CardBody, CardHeader, Notice, PageHeader } from "@/components/ui/primitives";
+import { Card, CardBody, CardHeader, Notice, PageHeader, Select } from "@/components/ui/primitives";
 import { ActorChip, SampleBadge } from "@/components/common";
 import { Thread } from "@/components/thread";
 import { AskCoo } from "@/components/ask-coo";
@@ -47,7 +47,7 @@ export default function CommunicationPage() {
               <button
                 onClick={() => setActive(c)}
                 aria-current={selected ? "true" : undefined}
-                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px]", selected ? "bg-surface-2 font-medium text-fg" : "text-fg-2 hover:bg-surface-2/60")}
+                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] pointer-coarse:py-3", selected ? "bg-surface-2 font-medium text-fg" : "text-fg-2 hover:bg-surface-2/60")}
                 data-testid={`channel-${c.kind}-${c.refId ?? "all"}`}
               >
                 {c.color ? <span className="size-2 shrink-0 rounded-sm" style={{ background: c.color }} aria-hidden /> : <Icon className="size-3.5 shrink-0 text-muted" aria-hidden />}
@@ -66,7 +66,24 @@ export default function CommunicationPage() {
       <PageHeader title={t("communication.title")} subtitle={t("communication.subtitle")} />
       <Notice icon={<Info className="size-4 text-accent" />} className="mb-6">{t("communication.notRealtime")}</Notice>
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
-        <Card className="h-fit">
+        {/* Phones: a compact picker above the thread, so choosing a channel never changes content off-screen. */}
+        <Select
+          className="lg:hidden"
+          aria-label={t("communication.channel")}
+          value={`${active.kind}|${active.refId ?? ""}`}
+          onChange={(e) => {
+            const c = [...general, ...depts, ...projects].find((x) => `${x.kind}|${x.refId ?? ""}` === e.target.value);
+            if (c) setActive(c);
+          }}
+          data-testid="channel-picker"
+        >
+          {([[t("communication.general"), general], [t("communication.departments"), depts], [t("communication.projects"), projects]] as const).map(([title, items]) => (
+            <optgroup key={title} label={title}>
+              {items.map((c) => <option key={`${c.kind}-${c.refId}`} value={`${c.kind}|${c.refId ?? ""}`}>{c.label} ({count(c)})</option>)}
+            </optgroup>
+          ))}
+        </Select>
+        <Card className="hidden h-fit lg:block">
           <CardBody className="space-y-4 px-3">
             {group(t("communication.general"), general)}
             {group(t("communication.departments"), depts)}
@@ -77,7 +94,7 @@ export default function CommunicationPage() {
           <Card>
             <CardHeader
               title={active.label}
-              description={active.kind === "project" && active.refId ? <Link href={routes.project(active.refId)} className="text-accent hover:underline">{active.refId}</Link> : t(`channelKind.${active.kind}`)}
+              description={active.kind === "project" && active.refId ? <Link href={routes.project(active.refId)} className="text-accent-text hover:underline">{active.refId}</Link> : undefined}
             />
             <CardBody>
               {active.kind === "direct" && <p className="mb-3 text-xs text-muted">{t("communication.directHint")}</p>}

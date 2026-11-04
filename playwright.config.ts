@@ -10,6 +10,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  // Several tests walk all 20 routes; under full parallel load they need more than the default 30 s.
+  // Each assertion still fails after 5 s.
+  timeout: 60_000,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `${BASE}/`,
@@ -18,13 +21,17 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /mobile\.spec/ },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /mobile\.spec/ },
+    // The CEO uses Safari on iPhone: smoke-test every route and the phone journeys in WebKit too.
+    { name: "iphone", use: { ...devices["iPhone 15"] }, testMatch: /(mobile|navigation)\.spec/ },
   ],
   webServer: {
     command: process.env.E2E_SKIP_BUILD ? `node scripts/serve-out.mjs ${PORT}` : `npm run build && node scripts/serve-out.mjs ${PORT}`,
     url: `${BASE}/`,
-    reuseExistingServer: !process.env.CI,
+    // Never test a server left over from an earlier build.
+    reuseExistingServer: false,
     timeout: 180_000,
-    // E2E runs in local-only mode: empty Supabase settings switch cloud sync off.
-    env: { NEXT_PUBLIC_BASE_PATH: "/ai-company-os", NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_KEY: "" },
+    // The production configuration (cloud sync on, from aicos.config.json) — the build CI tests is the build it deploys.
+    // Supabase traffic is stubbed in tests/e2e/fixtures.ts.
+    env: { NEXT_PUBLIC_BASE_PATH: "/ai-company-os" },
   },
 });
